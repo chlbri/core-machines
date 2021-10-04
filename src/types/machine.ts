@@ -1,16 +1,12 @@
-export type Error =
-  | 'update'
-  | 'set'
-  | 'delete'
-  | 'remove'
-  | 'retrieve'
-  | 'fetch';
+import { ErrorStateString } from './error';
 
 export type TC<T> = {
   iterator: number;
+  id?: string;
   current?: T;
   previous?: T;
-  error?: Error;
+  error?: ErrorStateString;
+  needToFecth: number;
 };
 
 export type TCpending = {
@@ -25,7 +21,7 @@ export type TCSuccess<T> = {
 
 export type TCError<T> = {
   current: T;
-  error: Error;
+  error: ErrorStateString;
 };
 
 export type TE<T> =
