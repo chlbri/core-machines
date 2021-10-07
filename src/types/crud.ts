@@ -16,6 +16,14 @@ export type QueryFieldParams<T = any> = {
   value: T;
 };
 
+export type Data<T> =
+  | (T & {
+      id: string;
+    })
+  | {
+      id: string;
+    };
+
 export type QueryFieldArrayParams<T = any> = {
   oprString: WhereFilterOp;
   value: T;
@@ -77,19 +85,13 @@ export type ReadOne<T> = (
   filters: QueryParams<T>,
   options?: NOmit<QueryOptions, 'limit'>
 ) => Promise<
-  T & {
-    id: string;
-  }
+  Data<T>
 >;
 
 export type ReadOneById<T> = (
   id: string,
   options?: NOmit<QueryOptions, 'limit'>
-) => Promise<
-  T & {
-    id: string;
-  }
->;
+) => Promise<Data<T>>;
 
 // #endregion
 
@@ -266,5 +268,3 @@ export interface CRUD<T> {
   retrieveOne: RetrieveOne<T>;
   retrieveOneById: RetrieveOneById;
 }
-
-

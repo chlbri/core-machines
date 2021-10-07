@@ -1,6 +1,14 @@
 import { ErrorStateString } from './error';
 
-export type TC<T> = {
+export type SingleTC<T> = {
+  iterator: number;
+  id?: string;
+  current?: T;
+  previous?: T;
+  error?: ErrorStateString;
+  needToFecth: number;
+};
+export type ListTC<T> = {
   iterator: number;
   id?: string;
   current?: T;
@@ -24,19 +32,30 @@ export type TCError<T> = {
   error: ErrorStateString;
 };
 
-export type TE<T> =
+export type SingleTE<T> =
   | { type: 'update'; data: T }
   | { type: 'set'; data: T }
   | { type: 'delete' }
   | { type: 'remove' }
   | { type: 'retrieve' }
-  | { type: 'fetch' };
+  | { type: 'fetch'; id: string }
+  | { type: 'refetch' };
 
-export type TT<T> =
-  | { value: 'idle'; context: TC<T> & { iterator: 0 } }
+export type SingleTT<T> =
+  | { value: 'idle'; context: SingleTC<T> & { iterator: 0 } }
   | {
-      value: 'update' | 'set' | 'delete' | 'remove' | 'retrieve' | 'fetch';
-      context: TC<T> & TCpending;
+      value:
+        | 'update'
+        | 'set'
+        | 'delete'
+        | 'remove'
+        | 'retrieve'
+        | 'fetch'
+        | 'refetch';
+      context: SingleTC<T> & TCpending;
     }
-  | { value: 'success'; context: TC<T> & TCSuccess<T> }
-  | { value: 'error'; context: TC<T> & TCError<T> };
+  | { value: 'success'; context: SingleTC<T> & TCSuccess<T> }
+  | { value: 'error'; context: SingleTC<T> & TCError<T> };
+
+
+  

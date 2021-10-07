@@ -44,14 +44,25 @@
     }
   ],
   "peerDependencies": {
-    "xstate": "^4.25.0",
-    "immer": "^9.0.6"
+    "immer": "^9.0.6",
+    "xstate": "^4.25.0"
   },
   "devDependencies": {
     "@size-limit/preset-small-lib": "^5.0.5",
+    "@types/jest": "^27.0.2",
+    "@typescript-eslint/eslint-plugin": "^4.33.0",
+    "@typescript-eslint/parser": "^4.33.0",
+    "edit-json-file": "^1.6.0",
+    "eslint": "^7.32.0",
     "husky": "^7.0.2",
     "immer": "^9.0.6",
+    "jest-cucumber": "^3.0.1",
+    "prettier": "^2.4.1",
+    "rimraf": "^3.0.2",
+    "shelljs": "^0.8.4",
     "size-limit": "^5.0.5",
+    "test-machine": "^0.1.51",
+    "ts-jest": "^27.0.5",
     "tsdx": "^0.14.1",
     "tslib": "^2.3.1",
     "typescript": "^4.4.3",

@@ -1,18 +1,22 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import produce from 'immer';
-import {
-  ActionTypes,
-  assign,
-  createMachine as create,
-  ErrorPlatformEvent,
-  ServiceConfig,
-} from 'xstate';
-import { createModel } from 'xstate/lib/model';
-import isErrorStateString from '../functions/isErrorString';
+import { assign, createMachine as create, TransitionsConfig } from 'xstate';
 import { CRUD } from '../types/crud';
 import StateError from '../types/error';
-import { TC, TE } from '../types/machine';
+import { SingleTC, SingleTE } from '../types/machine';
 
-export default function createMachine<T>(crud: CRUD<T>) {
+export type DAOSingle<T> = Pick<
+  CRUD<T>,
+  | 'updateOneById'
+  | 'setOneById'
+  | 'deleteOneById'
+  | 'removeOneById'
+  | 'retrieveOneById'
+  | 'readOneById'
+>;
+
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export default function createSingleMachine<T>(crud: DAOSingle<T>) {
   const asyncHandle = {
     onDone: {
       target: 'success',
@@ -24,69 +28,129 @@ export default function createMachine<T>(crud: CRUD<T>) {
         actions: ['addNeedToFetch', 'assignAsyncError'],
         target: 'success',
       },
-      { target: 'error' },
+      { target: 'error', actions: [] },
     ],
   };
-  const machine = create<TC<T>, TE<T>>(
+
+  const entry = 'iterate';
+
+  const onEvents: TransitionsConfig<SingleTC<T>, SingleTE<T>> = {
+    update: {
+      target: 'update',
+    },
+    set: {
+      target: 'set',
+    },
+    delete: {
+      target: 'delete',
+    },
+    remove: {
+      target: 'remove',
+    },
+    retrieve: {
+      target: 'retrieve',
+    },
+    fetch: {
+      target: 'fetch',
+    },
+    refetch: {
+      target: 'refetch',
+    },
+  };
+
+  const machine = create<SingleTC<T>, SingleTE<T>>(
     {
+      initial: 'idle',
       context: {
         iterator: 0,
         needToFecth: 0,
       },
       states: {
         idle: {
-          on: {},
+          on: onEvents,
         },
         update: {
+          entry,
           invoke: {
             src: 'update',
             ...asyncHandle,
           },
         },
         set: {
+          entry,
+
           invoke: {
             src: 'set',
             ...asyncHandle,
           },
         },
         delete: {
+          entry,
+
           invoke: {
             src: 'delete',
             ...asyncHandle,
           },
         },
         remove: {
+          entry,
+
           invoke: {
             src: 'remove',
             ...asyncHandle,
           },
         },
         retrieve: {
+          entry,
+
           invoke: {
             src: 'retrieve',
             ...asyncHandle,
           },
         },
         fetch: {
+          entry,
+
           invoke: {
             src: 'fetch',
-            ...produce(asyncHandle, draft => {
+            ...produce(asyncHandle, (draft) => {
               draft.onDone.actions.push(
                 'assignCurrent',
-                'assignPreviousassignPrevious'
+                'assignPrevious'
               );
             }),
           },
         },
+        refetch: {
+          entry,
+
+          invoke: {
+            src: 'refetch',
+            ...produce(asyncHandle, (draft) => {
+              draft.onDone.actions.push(
+                'assignCurrent',
+                'assignPrevious'
+              );
+            }),
+          },
+        },
+
         checking: {
+          entry,
+
           always: {},
         },
+
         success: {
-          on: {},
+          entry,
+
+          on: onEvents,
         },
 
         error: {
-          on: {},
+          entry,
+
+          on: onEvents,
         },
       },
     },
@@ -101,8 +165,10 @@ export default function createMachine<T>(crud: CRUD<T>) {
           return false;
         },
       },
+
       actions: {
-        assignPrevious: assign({ previous: ctx => ctx.current }),
+        iterate: assign({ iterator: (ctx) => ctx.iterator + 1 }),
+        assignPrevious: assign({ previous: (ctx) => ctx.current }),
         assignCurrent: assign({
           current: (_, _event: any) => {
             if (!_event.data) return undefined;
@@ -111,10 +177,10 @@ export default function createMachine<T>(crud: CRUD<T>) {
         }),
         // #region NeedToFetch
         addNeedToFetch: assign({
-          needToFecth: ({ needToFecth }) => needToFecth++,
+          needToFecth: (ctx) => ctx.needToFecth + 1,
         }),
         rinitNeedToFetch: assign({
-          needToFecth: _ => 0,
+          needToFecth: (_) => 0,
         }),
         // #endregion
         assignAsyncError: assign({
@@ -128,6 +194,7 @@ export default function createMachine<T>(crud: CRUD<T>) {
           },
         }),
       },
+
       services: {
         update: async (ctx, ev) => {
           if (ev.type !== 'update') {
@@ -137,32 +204,44 @@ export default function createMachine<T>(crud: CRUD<T>) {
           const updatedID = await crud.updateOneById(ctx.id, ev.data);
           if (updatedID !== ctx.id) throw new Error('idNotMatch');
         },
+
         set: async (ctx, ev) => {
           if (ev.type !== 'set') throw new StateError('incorrectState');
           if (!ctx.id) throw new StateError('idNotDefined');
           const setID = await crud.setOneById(ctx.id, ev.data);
           if (setID !== ctx.id) throw new Error('idNotMatch');
         },
+
         delete: async (ctx, ev) => {
           if (ev.type !== 'delete') throw new StateError('incorrectState');
           if (!ctx.id) throw new StateError('idNotDefined');
           const deletedID = await crud.deleteOneById(ctx.id);
           if (deletedID !== ctx.id) throw new Error('idNotMatch');
         },
+
         remove: async (ctx, ev) => {
-          if (ev.type !== 'delete') throw new StateError('incorrectState');
+          if (ev.type !== 'remove') throw new StateError('incorrectState');
           if (!ctx.id) throw new StateError('idNotDefined');
           const removedID = await crud.removeOneById(ctx.id);
           if (removedID !== ctx.id) throw new Error('idNotMatch');
         },
+
         retrieve: async (ctx, ev) => {
-          if (ev.type !== 'delete') throw new StateError('incorrectState');
+          if (ev.type !== 'retrieve') throw new StateError('incorrectState');
           if (!ctx.id) throw new StateError('idNotDefined');
           const retrievedID = await crud.retrieveOneById(ctx.id);
           if (retrievedID !== ctx.id) throw new Error('idNotMatch');
         },
+
         fetch: async (ctx, ev) => {
-          if (ev.type !== 'delete') throw new StateError('incorrectState');
+          if (ev.type !== 'fetch') throw new StateError('incorrectState');
+          if (!ev.id) throw new StateError('idNotDefined');
+          const fetchData = await crud.readOneById(ev.id);
+          if (fetchData.id !== ctx.id) throw new Error('idNotMatch');
+          return fetchData;
+        },
+        refetch: async (ctx, ev) => {
+          if (ev.type !== 'refetch') throw new StateError('incorrectState');
           if (!ctx.id) throw new StateError('idNotDefined');
           const fetchData = await crud.readOneById(ctx.id);
           if (fetchData.id !== ctx.id) throw new Error('idNotMatch');
@@ -171,4 +250,6 @@ export default function createMachine<T>(crud: CRUD<T>) {
       },
     }
   );
+
+  return machine;
 }
