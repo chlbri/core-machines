@@ -7,9 +7,13 @@ export const ASYNC_STATE_ERROR_STRINGS = [
   'fetch',
 ] as const;
 
-export const STATE_ERROR_STRINGS = [
-  ...ASYNC_STATE_ERROR_STRINGS,
+export const INTERNAL_STATE_ERROR_STRINGS = [
   'incorrectState',
   'idNotDefined',
   'idNotMatch',
+] as const;
+
+export const STATE_ERROR_STRINGS = [
+  ...ASYNC_STATE_ERROR_STRINGS,
+  ...INTERNAL_STATE_ERROR_STRINGS,
 ] as const;

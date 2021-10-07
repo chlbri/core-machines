@@ -3,7 +3,11 @@ import produce from 'immer';
 import { assign, createMachine as create, TransitionsConfig } from 'xstate';
 import { CRUD } from '../types/crud';
 import StateError from '../types/error';
-import { SingleTC, SingleTE } from '../types/machine';
+import {
+  SingleContext,
+  SingleEvent,
+  SingleTypeState,
+} from '../types/machine/single';
 
 export type DAOSingle<T> = Pick<
   CRUD<T>,
@@ -34,7 +38,7 @@ export default function createSingleMachine<T>(crud: DAOSingle<T>) {
 
   const entry = 'iterate';
 
-  const onEvents: TransitionsConfig<SingleTC<T>, SingleTE<T>> = {
+  const onEvents: TransitionsConfig<SingleContext<T>, SingleEvent<T>> = {
     update: {
       target: 'update',
     },
@@ -58,7 +62,7 @@ export default function createSingleMachine<T>(crud: DAOSingle<T>) {
     },
   };
 
-  const machine = create<SingleTC<T>, SingleTE<T>>(
+  const machine = create<SingleContext<T>, SingleEvent<T>, SingleTypeState<T>>(
     {
       initial: 'idle',
       context: {
@@ -114,10 +118,7 @@ export default function createSingleMachine<T>(crud: DAOSingle<T>) {
           invoke: {
             src: 'fetch',
             ...produce(asyncHandle, (draft) => {
-              draft.onDone.actions.push(
-                'assignCurrent',
-                'assignPrevious'
-              );
+              draft.onDone.actions.push('assignCurrent', 'assignPrevious');
             }),
           },
         },
@@ -127,10 +128,7 @@ export default function createSingleMachine<T>(crud: DAOSingle<T>) {
           invoke: {
             src: 'refetch',
             ...produce(asyncHandle, (draft) => {
-              draft.onDone.actions.push(
-                'assignCurrent',
-                'assignPrevious'
-              );
+              draft.onDone.actions.push('assignCurrent', 'assignPrevious');
             }),
           },
         },

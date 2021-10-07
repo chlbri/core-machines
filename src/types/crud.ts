@@ -84,14 +84,23 @@ export type ReadManyByIds<T> = (
 export type ReadOne<T> = (
   filters: QueryParams<T>,
   options?: NOmit<QueryOptions, 'limit'>
-) => Promise<
-  Data<T>
->;
+) => Promise<Data<T>>;
 
 export type ReadOneById<T> = (
   id: string,
   options?: NOmit<QueryOptions, 'limit'>
 ) => Promise<Data<T>>;
+
+// #endregion
+
+// #region Count
+
+export type CountAll = () => Promise<number>;
+
+export type Count<T> = (
+  filters: QueryParams<T>,
+  options?: NOmit<QueryOptions, 'limit'>
+) => Promise<number>;
 
 // #endregion
 
@@ -242,6 +251,8 @@ export interface CRUD<T> {
   readManyByIds: ReadManyByIds<T>;
   readOne: ReadOne<T>;
   readOneById: ReadOneById<T>;
+  countAll: CountAll;
+  count: Count<T>;
   updateAll: UpdateAll<T>;
   updateMany: UpdateMany<T>;
   updateManyByIds: UpdateManyByIds<T>;
