@@ -1,5 +1,9 @@
 import { DataConverter, DocumentData } from '../../data';
-import { AsyncStateErrorString, ErrorStateString, InternalStateErrorString } from '../../error';
+import {
+  AsyncStateErrorString,
+  ErrorStateString,
+  InternalStateErrorString,
+} from '../../error';
 
 export type MultiContext<T extends DocumentData> = {
   iterator: number;

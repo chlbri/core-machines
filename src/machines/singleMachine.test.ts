@@ -1,12 +1,11 @@
 import produce from 'immer';
 import { generateAsyncMachineTest } from 'test-machine';
 import { Event } from 'xstate';
-import createSingleMachine from '../src/machines/singleMachine';
-import { SingleContext, SingleEvent } from '../src/types/machine/single';
-import { db, __db } from './.config/db';
-// import { __db } from './.config/db';
-import { DataMock } from './.config/types';
-import { mockDAO } from './.config/values';
+import { db } from '../.config/test/db';
+import { DataMock } from '../.config/test/types';
+import { mockDAO } from '../.config/test/values';
+import { SingleEvent, SingleContext } from '../types';
+import createSingleMachine from './singleMachine';
 
 const machine = createSingleMachine(mockDAO);
 
@@ -178,4 +177,3 @@ generateAsyncMachineTest({
   ],
   timeout: 100,
 });
-

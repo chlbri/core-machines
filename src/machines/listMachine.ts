@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import produce from 'immer';
-import { assign, createMachine as create, TransitionsConfig } from 'xstate';
+import { createMachine as create, TransitionsConfig } from 'xstate';
 import { CRUD } from '../types/crud';
 // import StateError from '../types/error';
-import { MultiContext } from '../types/machine/multi/context';
+import { MultiContext, MultiEvent } from '../types/machine/multi';
 import { SingleEvent } from '../types/machine/single';
 
 // export type DAOSingle<T> = CRUD<T>;
@@ -60,7 +60,7 @@ export default function createListMachine<T>(
     },
   };
 
-  const machine = create<MultiContext<T>, SingleEvent<T>>(
+  const machine = create<MultiContext<T>, MultiEvent<T>>(
     {
       initial: 'idle',
       context: {
@@ -72,69 +72,45 @@ export default function createListMachine<T>(
       },
       states: {
         idle: {
-          on: onEvents,
+          // on: onEvents,
         },
-        update: {
-          entry,
-          invoke: {
-            src: 'update',
-            ...asyncHandle,
-          },
-        },
-        set: {
-          entry,
+        createMany: {},
+        createOne: {},
+        upsertOne: {},
+        readAll: {},
+        readMany: {},
+        readManyByIds: {},
+        readOne: {},
+        readOneById: {},
+        countAll: {},
+        count: {},
+        updateAll: {},
+        updateMany: {},
+        updateManyByIds: {},
+        updateOne: {},
+        updateOneById: {},
+        setAll: {},
+        setMany: {},
+        setManyByIds: {},
+        setOne: {},
+        setOneById: {},
+        deleteAll: {},
+        deleteMany: {},
+        deleteManyByIds: {},
+        deleteOne: {},
+        deleteOneById: {},
+        removeAll: {},
+        removeMany: {},
+        removeManyByIds: {},
+        removeOne: {},
+        removeOneById: {},
+        retrieveAll: {},
+        retrieveMany: {},
+        retrieveManyByIds: {},
+        retrieveOne: {},
+        retrieveOneById: {},
 
-          invoke: {
-            src: 'set',
-            ...asyncHandle,
-          },
-        },
-        delete: {
-          entry,
-
-          invoke: {
-            src: 'delete',
-            ...asyncHandle,
-          },
-        },
-        remove: {
-          entry,
-
-          invoke: {
-            src: 'remove',
-            ...asyncHandle,
-          },
-        },
-        retrieve: {
-          entry,
-
-          invoke: {
-            src: 'retrieve',
-            ...asyncHandle,
-          },
-        },
-        fetch: {
-          entry,
-
-          invoke: {
-            src: 'fetch',
-            ...produce(asyncHandle, (draft) => {
-              draft.onDone.actions.push('assignCurrent', 'assignPrevious');
-            }),
-          },
-        },
-        refetch: {
-          entry,
-
-          invoke: {
-            src: 'refetch',
-            ...produce(asyncHandle, (draft) => {
-              draft.onDone.actions.push('assignCurrent', 'assignPrevious');
-            }),
-          },
-        },
-
-        checking: {
+        internalError: {
           entry,
 
           always: {},
@@ -143,13 +119,20 @@ export default function createListMachine<T>(
         success: {
           entry,
 
-          on: onEvents,
+          // on: onEvents,
         },
 
         error: {
           entry,
 
-          on: onEvents,
+          // on: onEvents,
+        },
+      },
+    },
+    {
+      services: {
+        rert: () => {
+          return crud.count({});
         },
       },
     }

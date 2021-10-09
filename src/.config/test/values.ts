@@ -1,5 +1,5 @@
 import produce from 'immer';
-import { CRUD } from '../../src/types/crud';
+import { CRUD } from '../../types';
 import { db, __db } from './db';
 import { DataMock } from './types';
 
@@ -55,7 +55,7 @@ export const mockDAO: CRUD<DataMock> = {
   },
   readOneById: async (id) => {
     const out = __db.find((data) => data.id === id);
-    if (!out) throw new Error('Not Found')
+    if (!out) throw new Error('Not Found');
     return { ...out, id };
   },
   createMany: function (/* data, errorHandler */) {

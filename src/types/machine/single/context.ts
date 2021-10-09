@@ -1,5 +1,9 @@
 import { DocumentData } from '../../data';
-import { AsyncStateErrorString, ErrorStateString, InternalStateErrorString } from '../../error';
+import {
+  AsyncStateErrorString,
+  ErrorStateString,
+  InternalStateErrorString,
+} from '../../error';
 
 export type SingleContext<T extends DocumentData> = {
   iterator: number;
@@ -10,12 +14,10 @@ export type SingleContext<T extends DocumentData> = {
   needToFecth: number;
 };
 
-
 export type SingleContextSuccess<T extends DocumentData> = {
   current: T;
   error: undefined;
 };
-
 
 export type SingleContextPending = {
   current: undefined;

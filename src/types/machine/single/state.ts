@@ -21,5 +21,8 @@ export type SingleTypeState<T extends DocumentData> =
       context: SingleContext<T> & SingleContextPending;
     }
   | { value: 'success'; context: SingleContext<T> & SingleContextSuccess<T> }
-  | { value: 'internalError'; context: SingleContext<T> & SingleInternalError<T> }
+  | {
+      value: 'internalError';
+      context: SingleContext<T> & SingleInternalError<T>;
+    }
   | { value: 'error'; context: SingleContext<T> & SingleAsyncError };
