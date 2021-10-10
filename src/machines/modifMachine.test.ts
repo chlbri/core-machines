@@ -5,15 +5,15 @@ import { db } from '../.config/test/db';
 import { DataMock } from '../.config/test/types';
 import { mockDAO } from '../.config/test/values';
 import { SingleEvent, SingleContext } from '../types';
-import createSingleMachine from './singleMachine';
+import createModifMachine from './modifMachine';
 
-const machine = createSingleMachine(mockDAO);
+const machine = createModifMachine(mockDAO);
 
 const modif = { login: 'modifiedLogin' };
 
 const eventUpdate: Event<SingleEvent<DataMock>> = {
   type: 'update',
-  data: modif,
+  data: {},
 };
 
 const eventSet: Event<SingleEvent<DataMock>> = {

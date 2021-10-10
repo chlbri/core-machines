@@ -7,7 +7,7 @@ import {
 
 export type MultiContext<T extends DocumentData> = {
   iterator: number;
-  last?: string;
+  lastId?: string;
   previous?: T[];
   current?: T[];
   selectedValues?: T[];

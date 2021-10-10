@@ -7,6 +7,6 @@ import { MultiTypeState } from './state';
 export type MultiMachine<T extends DocumentData> = StateMachine<
   MultiContext<T>,
   any,
-  MultiEvent<T>,
+  MultiEvent,
   MultiTypeState<T>
 >;

@@ -8,16 +8,12 @@ import {
 import { DocumentData } from '../../data';
 
 export type MultiTypeState<T extends DocumentData> =
-  | { value: 'idle'; context: MultiContext<T> & { iterator: 0 } }
   | {
-      value:
-        | 'update'
-        | 'set'
-        | 'delete'
-        | 'remove'
-        | 'retrieve'
-        | 'fetch'
-        | 'refetch';
+      value: 'idle';
+      context: MultiContext<T> & { iterator: 0; lastId: undefined };
+    }
+  | {
+      value: 'fetching' | 'refetching' | 'deleting' | 'removing';
       context: MultiContext<T> & MultiContextPending;
     }
   | { value: 'success'; context: MultiContext<T> & MultiContextSuccess<T> }

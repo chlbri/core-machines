@@ -1,11 +1,22 @@
-import createListMachine from './listMachine';
-import { mockDAO } from '../.config/test/values';
-import { Event, StateValue } from 'xstate';
-import { DataMock } from '../.config/test/types';
-import { MultiEvent } from '../types';
+import produce from 'immer';
+import { mockFn } from 'jest-mock-extended';
 import { generateAsyncMachineTest } from 'test-machine';
+import {
+  Event,
+  EventObject,
+  StateMachine,
+  StateValue,
+  Typestate,
+} from 'xstate';
+import { mockDAO, __db } from '../.config/test';
+import { DataMock } from '../.config/test/types';
+// import { mockDAO } from '../.config/test/values';
+import { MultiContext, MultiEvent } from '../types';
+import createListMachine from './listMachine';
 
-export const machine = createListMachine(mockDAO, { col: 'news' });
+// import { keys } from 'ts-transformer-keys';
+
+export const machine = createListMachine(mockDAO, { col: '' });
 
 const modif = { login: 'modifiedLogin' };
 
@@ -26,30 +37,27 @@ const manyData = [
 
 const oneData = manyData[0];
 
-type TestActionEvents = {
-  error: Event<MultiEvent<DataMock>>;
-  internalError: Event<MultiEvent<DataMock>>;
-  success: Event<MultiEvent<DataMock>>;
+type TestConfig = { fn: () => any; timeout?: number | undefined };
+
+type TestContext = {
+  state?: StateValue;
+  context?: MultiContext<DataMock>;
+  beforeAll?: TestConfig;
+  afterAll?: TestConfig;
 };
 
-const eCreateMany: TestActionEvents = {
-  error: {
-    type: 'createMany',
-    data: manyData,
-  },
-  internalError: {
-    type: 'createMany',
-    data: manyData,
-  },
-  success: {
-    type: 'createMany',
-    data: manyData,
-  },
+type TestContexts = {
+  error: TestContext;
+  internalError: TestContext;
+  success: TestContext;
+  event: Event<MultiEvent>;
 };
 
-const eCreateOne: Event<MultiEvent<DataMock>> = {
-  type: 'createOne',
-  data: oneData,
+const eFETCH: TestContexts = {
+  event: 'FETCH',
+  error: {},
+  internalError: {},
+  success: {},
 };
 
 // const eventDelete: Event<MultiEvent<DataMock>> = 'delete';
@@ -62,11 +70,62 @@ const eCreateOne: Event<MultiEvent<DataMock>> = {
 //   id: 'id1',
 // };
 
+type Selector<TC, TE extends EventObject, TT extends Typestate<TC>> = (
+  machine: StateMachine<TC, any, TE, TT>
+) => any;
+
+type ExistProps<TC, TE extends EventObject, TT extends Typestate<TC>> = {
+  identity: string;
+  selector: Selector<TC, TE, TT>;
+  value: StateValue;
+  machine: StateMachine<TC, any, TE, TT>;
+};
+
+function exists<TC, TE extends EventObject, TT extends Typestate<TC>>({
+  identity,
+  selector,
+  machine,
+  value,
+}: ExistProps<TC, TE, TT>) {
+  return it(`${identity} "${value.toString()}" shoulds exist`, () => {
+    const actual = Object.keys(selector(machine));
+    expect(actual).toContainEqual(value);
+  });
+}
+
 function stateExists(state: StateValue) {
-  return it(`State "${state.toString()}" shoulds exist`, () => {
-    const _machine = createListMachine(mockDAO, { col: '' });
-    const actual = Object.keys(_machine.states);
-    expect(actual).toContainEqual(state);
+  return exists({
+    identity: 'State',
+    machine,
+    value: state,
+    selector: (machine) => machine.states,
+  });
+}
+
+function actionExists(action: string) {
+  return exists({
+    identity: 'Action',
+    machine,
+    value: action,
+    selector: (machine) => machine.options.actions,
+  });
+}
+
+function guardExists(guard: string) {
+  return exists({
+    identity: 'Guerd',
+    machine,
+    value: guard,
+    selector: (machine) => machine.options.guards,
+  });
+}
+
+function serviceExists(service: string) {
+  return exists({
+    identity: 'Service',
+    machine,
+    value: service,
+    selector: (machine) => machine.options.services,
   });
 }
 
@@ -76,8 +135,8 @@ describe('Existence Test', () => {
     expect(createListMachine).toBeInstanceOf(Function);
   });
   it('It creates a machine', () => {
-    const _machine = createListMachine(mockDAO, { col: 'news' });
-    const actual = Object.keys(_machine);
+    const actual = Object.keys(machine);
+
     expect(actual).toContain('states');
     expect(actual).toContain('id');
     expect(actual).toContain('__xstatenode');
@@ -85,28 +144,65 @@ describe('Existence Test', () => {
     expect(actual).toContain('config');
     expect(actual).toContain('_transient');
   });
-  it('It creates inital context', () => {
-    const _machine = createListMachine(mockDAO, { col: 'news' });
-    const actual = _machine.context;
+  it('It creates initial context', () => {
+    const actual = machine.context;
     const expected = {
       iterator: 0,
       needToFecth: 0,
-      col: 'news',
+      col: '',
       pageSize: 20,
       currentPage: 0,
     };
     expect(actual).toEqual(expected);
   });
 
-  // #region Check states existence
-  [
-    ...Object.keys(mockDAO),
-    'idle',
-    'success',
-    'error',
-    'internalError',
-  ].forEach(stateExists);
-  // #endregion
+  describe('States', () => {
+    [
+      'idle',
+      'fetching',
+      'refetching',
+      'deleting',
+      'removing',
+      'success',
+      'error',
+      'internalError',
+    ].forEach(stateExists);
+  });
+
+  describe('Actions', () => {
+    [
+      'iterate',
+      'goToFirstPage',
+      'goToLastPage',
+      'goToNextPage',
+      'goToPrevPage',
+      'assignSelectedValues',
+      'totalPages',
+      'total',
+      'pageSize',
+      'canGotoPrevPage',
+      'assignTotalExceedDataBaseTotalError',
+      'canNextFetch',
+      'fetchNextStart',
+      'fetchNextEnd',
+      'canGotoNextPage',
+      'assignError',
+    ].forEach(actionExists);
+  });
+
+  describe('Guards', () => {
+    [
+      'canNextFetch',
+      'canGotoNextPage',
+      'canGoToPrevPage',
+      'nextFetching',
+      'targetPageIsWithinBounds',
+    ].forEach(guardExists);
+  });
+
+  describe('Services', () => {
+    ['fetch', 'refetch', 'delete', 'remove'].forEach(serviceExists);
+  });
 
   // it('State `idle` shoulds exist', () => {
   //   const _machine = createListMachine(mockDAO, { col: 'news' });
@@ -120,68 +216,91 @@ describe('Existence Test', () => {
   // });
 });
 
-function testAction(state: string, events: TestActionEvents) {
-  return describe(state, () => {
-    generateAsyncMachineTest({
-      machine,
-      events: [events.error],
-      invite: 'Error',
-      values: ['idle', state, 'error'],
-      timeout: 10,
+function testAction(state: string, contexts: TestContexts) {
+  describe(state, () => {
+    // generateAsyncMachineTest({
+    //   machine,
+    //   events: [events.event],
+    //   invite: 'Error',
+    //   values: ['idle', state, 'error'],
+    //   timeout: 10,
+    //   afterAll: events.error.afterAll,
+    //   beforeAll: events.error.beforeAll,
+    // });
+
+
+    describe('Error', () => {
+      const mock = produce(mockDAO, (draft) => {
+        draft.readMany = mockFn<typeof mockDAO.readMany>().mockRejectedValue(
+          new Error()
+        );
+      });
+      generateAsyncMachineTest({
+        machine: createListMachine(mock, { col: '' }),
+        events: [contexts.event],
+        values: ['idle', state, 'error'],
+        timeout: 10,
+      });
     });
 
-    generateAsyncMachineTest({
-      machine,
-      events: [events.internalError],
-      invite: 'InternalError',
-      values: ['idle', state, 'internalError'],
-      timeout: 10,
+    describe('internalError', () => {
+      const mock = produce(mockDAO, (draft) => {
+        draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(
+          []
+        );
+      });
+      generateAsyncMachineTest({
+        machine: createListMachine(mock, { col: '' }),
+        events: [contexts.event],
+        values: ['idle', state, 'internalError'],
+        timeout: 100,
+      });
     });
 
-    generateAsyncMachineTest({
-      machine,
-      events: [events.success],
-      invite: 'Success',
-      values: ['idle', state, 'success'],
-      timeout: 10,
+    describe('success', () => {
+      const mock = produce(mockDAO, (draft) => {
+        draft.readMany =
+          mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
+        draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(6);
+      });
+      generateAsyncMachineTest({
+        machine: createListMachine(mock, { col: '' }),
+        events: [contexts.event],
+        values: ['idle', state, 'success'],
+        timeout: 100,
+      });
     });
+
+    // describe('success', () => {
+    //   beforeAll(contexts.success.beforeAll.fn);
+    //   afterAll(contexts.success.afterAll.fn);
+    //   generateAsyncMachineTest({
+    //     machine: createListMachine(mockDAO, { col: '' }),
+    //     events: [contexts.event],
+    //     values: ['idle', state, 'success'],
+    //     timeout: 10,
+    //   });
+    // });
+
+    // generateAsyncMachineTest({
+    //   machine,
+    //   events: [events.event],
+    //   invite: 'Success',
+    //   values: ['idle', state, 'success'],
+    //   timeout: 10,
+    //   afterAll: events.success.afterAll,
+    //   beforeAll: events.success.beforeAll,
+    // });
   });
 }
 
 describe('Actions', () => {
-  testAction('createMany', eCreateMany);
-  testAction('createOne', eCreateMany);
-  testAction('upsertOne', eCreateMany);
-  testAction('readAll', eCreateMany);
-  testAction('readMany', eCreateMany);
-  testAction('readManyByIds', eCreateMany);
-  testAction('readOne', eCreateMany);
-  testAction('readOneById', eCreateMany);
-  testAction('countAll', eCreateMany);
-  testAction('count', eCreateMany);
-  testAction('updateAll', eCreateMany);
-  testAction('updateMany', eCreateMany);
-  testAction('updateManyByIds', eCreateMany);
-  testAction('updateOne', eCreateMany);
-  testAction('updateOneById', eCreateMany);
-  testAction('setAll', eCreateMany);
-  testAction('setMany', eCreateMany);
-  testAction('setManyByIds', eCreateMany);
-  testAction('setOne', eCreateMany);
-  testAction('setOneById', eCreateMany);
-  testAction('deleteAll', eCreateMany);
-  testAction('deleteMany', eCreateMany);
-  testAction('deleteManyByIds', eCreateMany);
-  testAction('deleteOne', eCreateMany);
-  testAction('deleteOneById', eCreateMany);
-  testAction('removeAll', eCreateMany);
-  testAction('removeMany', eCreateMany);
-  testAction('removeManyByIds', eCreateMany);
-  testAction('removeOne', eCreateMany);
-  testAction('removeOneById', eCreateMany);
-  testAction('retrieveAll', eCreateMany);
-  testAction('retrieveMany', eCreateMany);
-  testAction('retrieveManyByIds', eCreateMany);
-  testAction('retrieveOne', eCreateMany);
-  testAction('retrieveOneById', eCreateMany);
+  testAction('fetching', eFETCH);
+  // testAction('PREVIOUS', eFETCH);
+  // testAction('NEXT', eFETCH);
+  // testAction('REFETCH', eFETCH);
+  // testAction('GO_TO_TARGET_PAGE', eFETCH);
+  // testAction('CHANGE_PAGE_SIZE', eFETCH);
+  // testAction('REMOVE', eFETCH);
+  // testAction('DELETE', eFETCH);
 });

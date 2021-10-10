@@ -41,6 +41,8 @@ export type ErrorHandler = (error?: any) => never;
 export type QueryOptions = {
   limit?: number;
   errorHandler?: ErrorHandler;
+  after?: string;
+  before?: string;
 };
 
 // #region Create

@@ -20,7 +20,7 @@ export type DAOSingle<T> = Pick<
 >;
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-export default function createSingleMachine<T>(crud: DAOSingle<T>) {
+export default function createModifMachine<T>(crud: DAOSingle<T>) {
   const asyncHandle = {
     onDone: {
       target: 'success',

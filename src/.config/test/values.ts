@@ -1,4 +1,5 @@
 import produce from 'immer';
+import { mock, mockDeep } from 'jest-mock-extended';
 import { CRUD } from '../../types';
 import { db, __db } from './db';
 import { DataMock } from './types';
@@ -6,143 +7,109 @@ import { DataMock } from './types';
 export const __dataMock = __db[0];
 
 export const mockDAO: CRUD<DataMock> = {
-  updateOneById: async (id, data) => {
-    db.length = 0;
-    const index = __db.findIndex((value) => value.id === id);
-
-    db.push(
-      ...produce(__db, (draft) => {
-        draft[index] = { ...draft[index], ...data };
-      })
-    );
-    return id;
+  updateOneById: () => {
+    throw new Error();
   },
   setOneById: async (id, data) => {
-    db.length = 0;
-    const index = __db.findIndex((value) => value.id === id);
-    db.push(
-      ...produce(__db, (draft) => {
-        draft[index] = data;
-      })
-    );
-    return id;
+    throw new Error('Function not implemented.');
   },
   deleteOneById: async (id) => {
-    db.length = 0;
-    const index = __db.findIndex((value) => value.id === id);
-    db.push(
-      ...produce(__db, (draft) => {
-        draft[index].deleted = new Date();
-      })
-    );
-
-    return id;
+    throw new Error('Function not implemented.');
   },
   removeOneById: async (id) => {
-    db.length = 0;
-    return id;
+    throw new Error('Function not implemented.');
   },
   retrieveOneById: async (id) => {
-    db.length = 0;
-    const index = __db.findIndex((value) => value.id === id);
-    db.push(
-      ...produce(__db, (draft) => {
-        draft[index].deleted = undefined;
-      })
-    );
-    db.length;
-    return id;
+    throw new Error('Function not implemented.');
   },
   readOneById: async (id) => {
-    const out = __db.find((data) => data.id === id);
-    if (!out) throw new Error('Not Found');
-    return { ...out, id };
-  },
-  createMany: function (/* data, errorHandler */) {
     throw new Error('Function not implemented.');
   },
-  createOne: function (/* data, errorHandler */) {
+  createMany: function (data, errorHandler) {
     throw new Error('Function not implemented.');
   },
-  upsertOne: function (/* id: string, data , errorHandler */) {
+  createOne: function (data, errorHandler) {
     throw new Error('Function not implemented.');
   },
-  readAll: function (/* options */) {
+  upsertOne: function (id: string, data, errorHandler) {
     throw new Error('Function not implemented.');
   },
-  readMany: function (/* filters , options */) {
+  readAll: function (options) {
     throw new Error('Function not implemented.');
   },
-  readManyByIds: function (/* ids, options */) {
+  readMany: function (filters, options) {
     throw new Error('Function not implemented.');
   },
-  readOne: function (/* filters , options */) {
+  readManyByIds: function (ids, options) {
     throw new Error('Function not implemented.');
   },
-  updateAll: function (/* data, options */) {
+  readOne: function (filters, options) {
     throw new Error('Function not implemented.');
   },
-  updateMany: function (/* filters , data, options */) {
+  updateAll: function (data, options) {
     throw new Error('Function not implemented.');
   },
-  updateManyByIds: function (/* ids, data , options */) {
+  updateMany: function (filters, data, options) {
     throw new Error('Function not implemented.');
   },
-  updateOne: function (/* filters, data, options */) {
+  updateManyByIds: function (ids, data, options) {
     throw new Error('Function not implemented.');
   },
-  setAll: function (/* data, options */) {
+  updateOne: function (filters, data, options) {
     throw new Error('Function not implemented.');
   },
-  setMany: function (/* filters, data, options */) {
+  setAll: function (data, options) {
     throw new Error('Function not implemented.');
   },
-  setManyByIds: function (/* ids, data, options */) {
+  setMany: function (filters, data, options) {
     throw new Error('Function not implemented.');
   },
-  setOne: function (/* filters, data, options */): Promise<string> {
+  setManyByIds: function (ids, data, options) {
     throw new Error('Function not implemented.');
   },
-  deleteAll: function (/* options */): Promise<number> {
+  setOne: function (filters, data, options): Promise<string> {
     throw new Error('Function not implemented.');
   },
-  deleteMany: function (/* filters, options */) {
+  deleteAll: function (options): Promise<number> {
     throw new Error('Function not implemented.');
   },
-  deleteManyByIds: function (/* ids, options */) {
+  deleteMany: function (filters, options) {
     throw new Error('Function not implemented.');
   },
-  deleteOne: function (/* filters, options */) {
+  deleteManyByIds: function (ids, options) {
     throw new Error('Function not implemented.');
   },
-  removeAll: function (/* options */): Promise<number> {
+  deleteOne: function (filters, options) {
     throw new Error('Function not implemented.');
   },
-  removeMany: function (/* filters, options */) {
+  removeAll: function (options): Promise<number> {
     throw new Error('Function not implemented.');
   },
-  removeManyByIds: function (/* ids, options */) {
+  removeMany: function (filters, options) {
     throw new Error('Function not implemented.');
   },
-  removeOne: function (/* filters, options */) {
+  removeManyByIds: function (ids, options) {
     throw new Error('Function not implemented.');
   },
-  retrieveAll: function (/* options */): Promise<number> {
+  removeOne: function (filters, options) {
     throw new Error('Function not implemented.');
   },
-  retrieveMany: function (/* filters, options */) {
+  retrieveAll: function (options): Promise<number> {
     throw new Error('Function not implemented.');
   },
-  retrieveManyByIds: function (/* ids, options */) {
+  retrieveMany: function (filters, options) {
     throw new Error('Function not implemented.');
   },
-  retrieveOne: function (/* filters, options */) {
+  retrieveManyByIds: function (ids, options) {
+    throw new Error('Function not implemented.');
+  },
+  retrieveOne: function (filters, options) {
     throw new Error('Function not implemented.');
   },
   countAll: function () {
     throw new Error('Function not implemented.');
   },
-  count: function (/* filters, options */) {
+  count: function (filters, options) {
     throw new Error('Function not implemented.');
   },
 };
