@@ -1,10 +1,10 @@
 import produce from 'immer';
 import { mock, mockDeep } from 'jest-mock-extended';
 import { CRUD } from '../../types';
-import { db, __db } from './db';
+import db from './db.json';
 import { DataMock } from './types';
 
-export const __dataMock = __db[0];
+export const __dataMock = db[0];
 
 export const mockDAO: CRUD<DataMock> = {
   updateOneById: () => {

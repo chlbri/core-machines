@@ -8,7 +8,7 @@ import {
   StateValue,
   Typestate,
 } from 'xstate';
-import { mockDAO, __db } from '../.config/test';
+import { mockDAO, db } from '../.config/test';
 import { DataMock } from '../.config/test/types';
 // import { mockDAO } from '../.config/test/values';
 import { MultiContext, MultiEvent } from '../types';
@@ -218,24 +218,16 @@ describe('Existence Test', () => {
 
 function testAction(state: string, contexts: TestContexts) {
   describe(state, () => {
-    // generateAsyncMachineTest({
-    //   machine,
-    //   events: [events.event],
-    //   invite: 'Error',
-    //   values: ['idle', state, 'error'],
-    //   timeout: 10,
-    //   afterAll: events.error.afterAll,
-    //   beforeAll: events.error.beforeAll,
-    // });
-
-
     describe('Error', () => {
       const mock = produce(mockDAO, (draft) => {
         draft.readMany = mockFn<typeof mockDAO.readMany>().mockRejectedValue(
           new Error()
         );
       });
+      const { state: initialState, context: initialContext } = contexts.error;
       generateAsyncMachineTest({
+        initialState,
+        initialContext,
         machine: createListMachine(mock, { col: '' }),
         events: [contexts.event],
         values: ['idle', state, 'error'],
@@ -249,7 +241,11 @@ function testAction(state: string, contexts: TestContexts) {
           []
         );
       });
+      const { state: initialState, context: initialContext } =
+        contexts.internalError;
       generateAsyncMachineTest({
+        initialState,
+        initialContext,
         machine: createListMachine(mock, { col: '' }),
         events: [contexts.event],
         values: ['idle', state, 'internalError'],
@@ -260,43 +256,168 @@ function testAction(state: string, contexts: TestContexts) {
     describe('success', () => {
       const mock = produce(mockDAO, (draft) => {
         draft.readMany =
-          mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
+          mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
         draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(6);
       });
+      const { state: initialState, context: initialContext } = contexts.success;
       generateAsyncMachineTest({
+        initialState,
+        initialContext,
         machine: createListMachine(mock, { col: '' }),
         events: [contexts.event],
         values: ['idle', state, 'success'],
         timeout: 100,
       });
     });
-
-    // describe('success', () => {
-    //   beforeAll(contexts.success.beforeAll.fn);
-    //   afterAll(contexts.success.afterAll.fn);
-    //   generateAsyncMachineTest({
-    //     machine: createListMachine(mockDAO, { col: '' }),
-    //     events: [contexts.event],
-    //     values: ['idle', state, 'success'],
-    //     timeout: 10,
-    //   });
-    // });
-
-    // generateAsyncMachineTest({
-    //   machine,
-    //   events: [events.event],
-    //   invite: 'Success',
-    //   values: ['idle', state, 'success'],
-    //   timeout: 10,
-    //   afterAll: events.success.afterAll,
-    //   beforeAll: events.success.beforeAll,
-    // });
   });
 }
 
 describe('Actions', () => {
-  testAction('fetching', eFETCH);
-  // testAction('PREVIOUS', eFETCH);
+  // const previousMock = produce(mockDAO, (draft) => {
+  //   draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+  //   draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(6);
+  // });
+  describe('fetching', () => {
+    
+    generateAsyncMachineTest({
+      machine: createListMachine(mockDAO, { col: '' }),
+      events: ['FETCH'],
+      values: ['idle', 'fetching', 'error'],
+      timeout: 100,
+      invite: 'The crud `readMany` method returns error',
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(
+        produce(mockDAO, (draft) => {
+          draft.readMany =
+            mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+          draft.count = mockFn<typeof mockDAO.count>().mockRejectedValue(new Error());
+        }),
+        { col: '' }
+      ),
+      events: ['FETCH'],
+      values: ['idle', 'fetching', 'error'],
+      timeout: 100,
+      invite: 'The crud `count` method returns error',
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(
+        produce(mockDAO, (draft) => {
+          draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(
+            []
+          );
+          draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+        }),
+        { col: '' }
+      ),
+      events: ['FETCH'],
+      values: ['idle', 'fetching', 'internalError'],
+      timeout: 100,
+
+      invite: 'Data is empty',
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(
+        produce(mockDAO, (draft) => {
+          draft.readMany =
+            mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+
+          draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+        }),
+        { col: '' }
+      ),
+      events: ['FETCH'],
+      values: ['idle', 'fetching', 'success'],
+      timeout: 100,
+      invite: 'It has data',
+    });
+  });
+  describe('PREVIOUS', () => {
+    const mock = produce(mockDAO, (draft) => {
+      draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(mock, { col: '' }),
+      events: ['PREVIOUS'],
+      values: ['success', 'internalError'],
+      timeout: 100,
+      initialState: 'success',
+      invite: "It doesn't have data",
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(mock, { col: '' }),
+      events: ['FETCH', 'PREVIOUS'],
+      values: ['idle', 'fetching', 'success', 'internalError'],
+      timeout: 100,
+      initialContext: { current: db },
+
+      invite: "It doesn't have previous page",
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(mock, { col: '' }),
+      events: ['PREVIOUS'],
+      values: ['success', 'success'],
+      timeout: 100,
+      initialState: 'success',
+      initialContext: { canGoToPrevPage: true },
+      invite: 'It have previous page',
+    });
+  });
+  describe('NEXT', () => {
+    const mock = produce(mockDAO, (draft) => {
+      draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(mock, { col: '' }),
+      events: ['NEXT'],
+      values: ['success', 'internalError'],
+      timeout: 100,
+      initialState: 'success',
+      invite: "It doesn't have data",
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(mock, { col: '' }),
+      events: ['FETCH', 'NEXT'],
+      values: ['idle', 'fetching', 'success', 'internalError'],
+      timeout: 100,
+      initialContext: { current: db },
+
+      invite: "It doesn't have next page",
+    });
+
+    // const ___mock = createListMachine(mock, { col: '' });
+
+    generateAsyncMachineTest({
+      machine: createListMachine(mock, { col: '' }),
+      events: ['NEXT'],
+      values: ['success', 'fetching', 'success'],
+      timeout: 100,
+      initialState: 'success',
+      initialContext: { canNextFetch: true, current: db },
+      invite: 'It have next page online only',
+      subscribers: [
+        (state) => {
+          console.log('state', '=>', state.value);
+        },
+      ],
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(mock, { col: '' }),
+      events: ['NEXT'],
+      values: ['success', 'success'],
+      timeout: 100,
+      initialState: 'success',
+      initialContext: { canGoToNextPage: true },
+      invite: 'It have next page',
+      // subscribers: [
+      //   (state) => {
+      //     console.log('state', '=>', state.value);
+      //   },
+      // ],
+    });
+  });
   // testAction('NEXT', eFETCH);
   // testAction('REFETCH', eFETCH);
   // testAction('GO_TO_TARGET_PAGE', eFETCH);

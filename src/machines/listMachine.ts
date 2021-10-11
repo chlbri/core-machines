@@ -59,6 +59,7 @@ export default function createListMachine<T extends { id?: string }>(
         col,
         pageSize: pageSize ?? 20,
         currentPage: 0,
+        maxFromDatabase: options.limit ?? 1000,
       },
       states: {
         idle: {
@@ -69,6 +70,7 @@ export default function createListMachine<T extends { id?: string }>(
         },
 
         fetching: {
+          entry,
           invoke: {
             src: 'fetch',
             onDone: 'success',
@@ -78,6 +80,20 @@ export default function createListMachine<T extends { id?: string }>(
                 target: 'internalError',
               },
               { target: 'error' },
+            ],
+          },
+          exit: ['fetchNextEnd'],
+        },
+
+        successAssignments: {
+          entry,
+          always: {
+            target: 'success',
+            actions: [
+              'assignPrevious',
+              'assignCurrent',
+              'assignTotal',
+              'assignTotalPages',
             ],
           },
         },
@@ -92,13 +108,35 @@ export default function createListMachine<T extends { id?: string }>(
 
         success: {
           entry,
-
+          on: {
+            PREVIOUS: [
+              {
+                cond: 'canGoToPrevPage',
+                actions: ['goToPrevPage' /* , 'assignSelectedValues' */],
+              },
+              { target: 'internalError' },
+            ],
+            NEXT: [
+              {
+                cond: 'canNextFetch',
+                actions: ['fetchNextStart'],
+                target: 'fetching',
+              },
+              {
+                cond: 'canGoToNextPage',
+                actions: ['goToNextPage' /* , 'assignSelectedValues' */],
+              },
+              { target: 'internalError' },
+            ],
+          },
           // on: onEvents,
         },
 
         error: {
           entry,
-
+          on: {
+            REFETCH: {},
+          },
           // on: onEvents,
         },
       },
@@ -125,7 +163,23 @@ export default function createListMachine<T extends { id?: string }>(
             return ctx.current.slice(first, last);
           },
         }),
-        totalPages: assign({
+        assignPrevious: assign({
+          previous: (ctx) => ctx.current,
+        }),
+        assignCurrent: assign({
+          current: (ctx, event: any) => {
+            if (!event.data) throw new Error();
+            const datas = event.data;
+            if (!Array.isArray(datas)) throw new Error();
+            const isArrayOfT = datas.map((data) => !!data.id);
+            if (!isArrayOfT) throw new Error();
+            return produce(ctx.current ?? [], (draft) => {
+              draft.push(...datas);
+            });
+          },
+        }),
+
+        assignTotalPages: assign({
           totalPages: (ctx) => {
             if (!ctx.total) throw new Error();
             if (ctx.pageSize === 0) throw new Error();
@@ -134,20 +188,20 @@ export default function createListMachine<T extends { id?: string }>(
             return isZero ? 1 : division;
           },
         }),
-        total: assign({
+        assignTotal: assign({
           total: (ctx) => {
             if (!ctx.current) throw new Error();
 
             return ctx.current.length;
           },
         }),
-        pageSize: assign({
+        assignPageSize: assign({
           pageSize: (ctx, event) =>
             event.type === 'CHANGE_PAGE_SIZE' ? event.pageSize : ctx.pageSize,
         }),
 
-        canGotoPrevPage: assign({
-          canGotoPrevPage: (ctx) => (ctx.currentPage > 0 ? true : undefined),
+        canGoToPrevPage: assign({
+          canGoToPrevPage: (ctx) => (ctx.currentPage > 0 ? true : undefined),
         }),
         assignTotalExceedDataBaseTotalError: assign({
           totalExceedTotalFromDatabase: (ctx) => {
@@ -173,15 +227,22 @@ export default function createListMachine<T extends { id?: string }>(
         fetchNextStart: assign({
           nextFetching: (_) => true,
         }),
+        assignLastId: assign({
+          lastId: (ctx) => {
+            if (!ctx.current) throw new Error();
+            if (!ctx.current.length) throw new Error();
+            return ctx.current[0].id;
+          },
+        }),
         fetchNextEnd: assign({
           nextFetching: (_) => undefined,
         }),
 
-        canGotoNextPage: assign({
-          canGotoNextPage: (ctx) => {
+        canGoToNextPage: assign({
+          canGoToNextPage: (ctx) => {
             if (!ctx.totalPages) throw new Error();
 
-            return ctx.currentPage < ctx.totalPages - 1 ? true : undefined;
+            return ctx.currentPage < ctx.totalPages - 2 ? true : undefined;
           },
         }),
         assignError: assign({
@@ -228,8 +289,8 @@ export default function createListMachine<T extends { id?: string }>(
       },
       guards: {
         canNextFetch: (ctx) => ctx.canNextFetch === true,
-        canGotoNextPage: (ctx) => ctx.canGotoNextPage === true,
-        canGoToPrevPage: (ctx) => ctx.canGotoPrevPage === true,
+        canGoToNextPage: (ctx) => ctx.canGoToNextPage === true,
+        canGoToPrevPage: (ctx) => ctx.canGoToPrevPage === true,
         nextFetching: (ctx) => ctx.nextFetching === true,
         targetPageIsWithinBounds: (ctx, event) => {
           if (event.type !== 'GO_TO_TARGET_PAGE') return false;
@@ -250,90 +311,6 @@ export default function createListMachine<T extends { id?: string }>(
         },
       },
     }
-
-    //   actions: {
-    //     iterate: assign({ iterator: (ctx) => ctx.iterator + 1 }),
-    //     assignPrevious: assign({ previous: (ctx) => ctx.current }),
-    //     assignCurrent: assign({
-    //       current: (_, _event: any) => {
-    //         if (!_event.data) return undefined;
-    //         return _event.data;
-    //       },
-    //     }),
-    //     // #region NeedToFetch
-    //     addNeedToFetch: assign({
-    //       needToFecth: (ctx) => ctx.needToFecth + 1,
-    //     }),
-    //     rinitNeedToFetch: assign({
-    //       needToFecth: (_) => 0,
-    //     }),
-    //     // #endregion
-    //     assignAsyncError: assign({
-    //       error: (_, _event: any) => {
-    //         if (!_event.data) return undefined;
-    //         const data = _event.data;
-    //         if (data instanceof StateError) {
-    //           return data.message;
-    //         }
-    //         return undefined;
-    //       },
-    //     }),
-    //   },
-
-    //   services: {
-    //     update: async (ctx, ev) => {
-    //       if (ev.type !== 'update') {
-    //         throw new StateError('incorrectState');
-    //       }
-    //       if (!ctx.id) throw new StateError('idNotDefined');
-    //       const updatedID = await crud.updateOneById(ctx.id, ev.data);
-    //       if (updatedID !== ctx.id) throw new Error('idNotMatch');
-    //     },
-
-    //     set: async (ctx, ev) => {
-    //       if (ev.type !== 'set') throw new StateError('incorrectState');
-    //       if (!ctx.id) throw new StateError('idNotDefined');
-    //       const setID = await crud.setOneById(ctx.id, ev.data);
-    //       if (setID !== ctx.id) throw new Error('idNotMatch');
-    //     },
-
-    //     delete: async (ctx, ev) => {
-    //       if (ev.type !== 'delete') throw new StateError('incorrectState');
-    //       if (!ctx.id) throw new StateError('idNotDefined');
-    //       const deletedID = await crud.deleteOneById(ctx.id);
-    //       if (deletedID !== ctx.id) throw new Error('idNotMatch');
-    //     },
-
-    //     remove: async (ctx, ev) => {
-    //       if (ev.type !== 'remove') throw new StateError('incorrectState');
-    //       if (!ctx.id) throw new StateError('idNotDefined');
-    //       const removedID = await crud.removeOneById(ctx.id);
-    //       if (removedID !== ctx.id) throw new Error('idNotMatch');
-    //     },
-
-    //     retrieve: async (ctx, ev) => {
-    //       if (ev.type !== 'retrieve') throw new StateError('incorrectState');
-    //       if (!ctx.id) throw new StateError('idNotDefined');
-    //       const retrievedID = await crud.retrieveOneById(ctx.id);
-    //       if (retrievedID !== ctx.id) throw new Error('idNotMatch');
-    //     },
-
-    //     fetch: async (ctx, ev) => {
-    //       if (ev.type !== 'fetch') throw new StateError('incorrectState');
-    //       if (!ev.id) throw new StateError('idNotDefined');
-    //       const fetchData = await crud.readOneById(ev.id);
-    //       if (fetchData.id !== ctx.id) throw new Error('idNotMatch');
-    //       return fetchData;
-    //     },
-    //     refetch: async (ctx, ev) => {
-    //       if (ev.type !== 'refetch') throw new StateError('incorrectState');
-    //       if (!ctx.id) throw new StateError('idNotDefined');
-    //       const fetchData = await crud.readOneById(ctx.id);
-    //       if (fetchData.id !== ctx.id) throw new Error('idNotMatch');
-    //       return fetchData;
-    //     },
-    //   },
-    // }
   );
 
   return machine;

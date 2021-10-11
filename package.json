@@ -41,11 +41,13 @@
     "xstate": "^4.25.0"
   },
   "devDependencies": {
+    "@types/faker": "^5.5.8",
     "@types/jest": "^27.0.2",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "edit-json-file": "^1.6.0",
     "eslint": "^7.32.0",
+    "faker": "^5.5.3",
     "husky": "^7.0.2",
     "immer": "^9.0.6",
     "jest": "^27.2.5",

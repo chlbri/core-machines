@@ -15,14 +15,14 @@ export type MultiContext<T extends DocumentData> = {
   col: string;
   converter?: DataConverter<T> | null;
   pageSize: number;
-  canGotoPrevPage?: true;
-  canGotoNextPage?: true;
+  canGoToPrevPage?: true;
+  canGoToNextPage?: true;
   totalFromDataBase?: number;
   totalPages?: number;
   total?: number;
   totalExceedTotalFromDatabase?: true;
   canNextFetch?: true;
-  maxFromDatabase?: number;
+  maxFromDatabase: number;
   nextFetching?: true;
   needToFecth?: number;
   error?: ErrorStateString;

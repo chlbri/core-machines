@@ -1,6 +1,7 @@
 export type DataMock = {
   login?: string;
-  firstName?: string;
+  firstNames?: string[];
+  lastName?: string;
   deleted?: Date;
   id?: string;
 };
