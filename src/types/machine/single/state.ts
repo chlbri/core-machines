@@ -6,8 +6,9 @@ import {
   SingleInternalError,
 } from './context';
 import { DocumentData } from '../../data';
+import { Entity } from 'core-data';
 
-export type SingleTypeState<T extends DocumentData> =
+export type SingleTypeState<T extends Entity> =
   | { value: 'idle'; context: SingleContext<T> & { iterator: 0 } }
   | {
       value:

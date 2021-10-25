@@ -1,22 +1,25 @@
 import { DeepPartial } from 'core';
+import { Entity, WithoutId } from 'core-data';
 import {
   AsyncStateErrorString,
   ErrorStateString,
   InternalStateErrorString,
 } from '../../error';
+import { DPW } from '../../_config';
 
-export type SingleContext<T> = {
+
+export type SingleContext<T extends Entity> = {
   iterator: number;
-  id?: string;
-  current?: T;
-  previous?: T;
-  mutations?: DeepPartial<T>[];
+  _id?: string;
+  current?: DPW<T>;
+  previous?: DPW<T>;
+  mutations?: WithoutId<DeepPartial<T>>[];
   error?: ErrorStateString;
   needToFecth: number;
 };
 
-export type SingleContextSuccess<T> = {
-  current: T;
+export type SingleContextSuccess<T extends Entity> = {
+  current: WithoutId<T>;
   error: undefined;
 };
 
@@ -30,7 +33,7 @@ export type SingleAsyncError = {
   error: AsyncStateErrorString;
 };
 
-export type SingleInternalError<T> = {
-  current: T;
+export type SingleInternalError<T extends Entity> = {
+  current: WithoutId<T>;
   error: InternalStateErrorString;
 };

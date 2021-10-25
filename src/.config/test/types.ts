@@ -1,9 +1,9 @@
-export type DataMock = {
+import { Entity } from 'core-data';
+
+export type DataMock = Entity & {
   login?: string;
   firstNames?: string[];
   lastName?: string;
-  deletedAt?: Date;
-  id?: string;
 };
 
 

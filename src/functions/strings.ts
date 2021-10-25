@@ -12,6 +12,8 @@ export const INTERNAL_STATE_ERROR_STRINGS = [
   'idNotDefined',
   'idNotMatch',
   'noData',
+  'noMutations',
+  'emptyMutations'
 ] as const;
 
 export const STATE_ERROR_STRINGS = [

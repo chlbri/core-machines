@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import { CRUD, DSO, Entity, QueryOptions } from 'core-data';
 import produce from 'immer';
 import { assign, createMachine as create, TransitionsConfig } from 'xstate';
 import { DataConverter } from '../types';
-import { CRUD, QueryOptions, QueryParams } from '../types/crud';
 import StateError from '../types/error';
 // import StateError from '../types/error';
 import { MultiContext, MultiEvent, MultiMachine } from '../types/machine/multi';
@@ -14,11 +14,11 @@ import { MultiContext, MultiEvent, MultiMachine } from '../types/machine/multi';
 type CreateListMachineOptions<T extends { id?: string }> = {
   col: string;
   pageSize?: number;
-  filters?: QueryParams<T>;
+  filters?: DSO<T>;
   options?: QueryOptions;
 };
 
-export type DAOList<T> = Pick<
+export type DAOList<T extends Entity> = Pick<
   CRUD<T>,
   | 'count'
   | 'countAll'
@@ -29,7 +29,7 @@ export type DAOList<T> = Pick<
   | 'removeOneById'
 >;
 
-export default function createListMachine<T extends { id?: string }>(
+export default function createListMachine<T extends Entity>(
   dao: DAOList<T>,
   { col, pageSize, filters = {}, options = {} }: CreateListMachineOptions<T>
 ) /* : MultiMachine<T> */ {
@@ -287,7 +287,6 @@ export default function createListMachine<T extends { id?: string }>(
           });
           const data = await dao.readMany(filters, _options);
 
-          if (!data.length) throw new StateError('noData');
 
           const size = await dao.count(filters, _options);
           const lastId = [...data].pop()?.id;

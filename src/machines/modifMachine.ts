@@ -1,15 +1,21 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import { CRUD, Entity, QueryOptions } from 'core-data';
+import ReturnData from 'core-promises';
 import produce from 'immer';
-import { assign, createMachine as create, TransitionsConfig } from 'xstate';
-import { CRUD } from '../types/crud';
+import {
+  assign,
+  createMachine as create,
+  TransitionsConfig,
+} from 'xstate';
 import StateError from '../types/error';
 import {
   SingleContext,
   SingleEvent,
   SingleTypeState,
 } from '../types/machine/single';
+import { DPW } from '../types/_config';
 
-export type DAOSingle<T> = Pick<
+export type DAOSingle<T extends Entity> = Pick<
   CRUD<T>,
   | 'updateOneById'
   | 'setOneById'
@@ -20,7 +26,10 @@ export type DAOSingle<T> = Pick<
 >;
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-export default function createModifMachine<T>(crud: DAOSingle<T>) {
+export default function createModifMachine<T extends Entity>(
+  crud: DAOSingle<T>,
+  options?: QueryOptions,
+) {
   const asyncHandle = {
     onDone: {
       target: 'success',
@@ -42,9 +51,7 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
     update: {
       target: 'update',
     },
-    set: {
-      target: 'set',
-    },
+
     delete: {
       target: 'delete',
     },
@@ -62,12 +69,17 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
     },
   };
 
-  const machine = create<SingleContext<T>, SingleEvent<T>, SingleTypeState<T>>(
+  const machine = create<
+    SingleContext<T>,
+    SingleEvent<T>,
+    SingleTypeState<T>
+  >(
     {
       initial: 'idle',
       context: {
         iterator: 0,
         needToFecth: 0,
+        mutations: [],
       },
       states: {
         idle: {
@@ -75,30 +87,27 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
         },
         update: {
           entry,
-          invoke: {
-            src: 'update',
-            ...asyncHandle,
+          always: {
+            actions: 'update',
+            target: 'pending',
           },
         },
-        set: {
+        pending: {
           entry,
-
-          invoke: {
-            src: 'set',
-            ...asyncHandle,
+          on: {
+            save: {},
           },
         },
+
         delete: {
           entry,
-
-          invoke: {
-            src: 'delete',
-            ...asyncHandle,
+          always: {
+            actions: 'delete',
+            target: 'pending',
           },
         },
         remove: {
           entry,
-
           invoke: {
             src: 'remove',
             ...asyncHandle,
@@ -106,10 +115,9 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
         },
         retrieve: {
           entry,
-
-          invoke: {
-            src: 'retrieve',
-            ...asyncHandle,
+          always: {
+            actions: 'retrieve',
+            target: 'pending',
           },
         },
         fetch: {
@@ -117,8 +125,9 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
 
           invoke: {
             src: 'fetch',
-            ...produce(asyncHandle, (draft) => {
-              draft.onDone.actions.push('assignCurrent', 'assignPrevious');
+            ...produce(asyncHandle, draft => {
+              draft.onDone.actions = ['assignPrevious', 'assignCurrent'];
+              draft.onError = [{ target: 'error', actions: [] }];
             }),
           },
         },
@@ -127,8 +136,9 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
 
           invoke: {
             src: 'refetch',
-            ...produce(asyncHandle, (draft) => {
-              draft.onDone.actions.push('assignCurrent', 'assignPrevious');
+            ...produce(asyncHandle, draft => {
+              draft.onDone.actions = ['assignPrevious', 'assignCurrent'];
+              draft.onError = [{ target: 'error', actions: [] }];
             }),
           },
         },
@@ -141,7 +151,6 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
 
         success: {
           entry,
-
           on: onEvents,
         },
 
@@ -165,20 +174,81 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
       },
 
       actions: {
-        iterate: assign({ iterator: (ctx) => ctx.iterator + 1 }),
-        assignPrevious: assign({ previous: (ctx) => ctx.current }),
+        iterate: assign({ iterator: ctx => ctx.iterator + 1 }),
+        assignPrevious: assign({ previous: ctx => ctx.current }),
         assignCurrent: assign({
-          current: (_, _event: any) => {
+          current: (ctx, _event: any) => {
             if (!_event.data) return undefined;
-            return _event.data;
+            const data = _event.data;
+            if (data instanceof ReturnData) {
+              const _data = data as ReturnData<T, any>;
+              return _data.forEach({
+                client: () => {
+                  throw new Error();
+                },
+                information: () => {
+                  throw new Error();
+                },
+                permission: () => {
+                  throw new Error();
+                },
+                redirect: () => {
+                  throw new Error();
+                },
+                server: () => {
+                  throw new Error();
+                },
+                success: (_, { _id, ...payload }) => {
+                  console.log('payload', '=>', ctx.previous);
+
+                  return payload as DPW<T>;
+                },
+                timeout: () => {
+                  throw new Error();
+                },
+              });
+            }
+            return undefined;
+          },
+          _id: (_, ev) => {
+            if (!ev.data) return undefined;
+            const data = ev.data;
+            if (data instanceof ReturnData) {
+              const _data = data as ReturnData<T, any>;
+
+              return _data.forEach({
+                client: () => {
+                  throw new Error();
+                },
+                information: () => {
+                  throw new Error();
+                },
+                permission: () => {
+                  throw new Error();
+                },
+                redirect: () => {
+                  throw new Error();
+                },
+                server: () => {
+                  throw new Error();
+                },
+                success: (_, payload) => {
+                  return payload._id;
+                },
+                timeout: () => {
+                  throw new Error();
+                },
+              });
+            }
+            return undefined;
           },
         }),
         // #region NeedToFetch
         addNeedToFetch: assign({
-          needToFecth: (ctx) => ctx.needToFecth + 1,
+          needToFecth: ctx => ctx.needToFecth + 1,
         }),
         rinitNeedToFetch: assign({
-          needToFecth: (_) => 0,
+          needToFecth: _ => 0,
         }),
         // #endregion
         assignAsyncError: assign({
@@ -191,62 +261,69 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
             return undefined;
           },
         }),
+        update: assign({
+          mutations: (ctx, event) => {
+            if (event.type !== 'update') return undefined;
+            if (!ctx.mutations) return undefined;
+            return [...ctx.mutations, event.data];
+          },
+        }),
+        delete: assign({
+          mutations: (ctx, ev) => {
+            if (ev.type !== 'delete') return undefined;
+            if (!ctx.mutations) return undefined;
+            const next = {
+              _deletedAt: false,
+            } as DPW<T>;
+
+            return [...ctx.mutations, next];
+          },
+        }),
+
+        retrieve: assign({
+          mutations: (ctx, event) => {
+            if (event.type !== 'retrieve') return undefined;
+            if (!ctx.mutations) return undefined;
+            const next = {
+              _deletedAt: false,
+            } as DPW<T>;
+            return [...ctx.mutations, next];
+          },
+        }),
       },
 
       services: {
-        update: async (ctx, ev) => {
+        save: (ctx, ev) => {
           if (ev.type !== 'update') {
             throw new StateError('incorrectState');
           }
-          if (!ctx.id) throw new StateError('idNotDefined');
-          const updatedID = await crud.updateOneById(ctx.id, ev.data);
-          if (updatedID !== ctx.id) throw new StateError('idNotMatch');
+          if (!ctx._id) throw new StateError('idNotDefined');
+          if (!ctx.mutations) throw new StateError('noMutations');
+          if (!ctx.mutations.length)
+            throw new StateError('emptyMutations');
+          return crud.updateOneById(ctx._id, ev.data);
+        },
+        remove: (ctx, ev) => {
+          if (ev.type !== 'remove') {
+            throw new StateError('incorrectState');
+          }
+          if (!ctx._id) throw new StateError('idNotDefined');
+          return crud.removeOneById('ctx.id');
         },
 
-        set: async (ctx, ev) => {
-          if (ev.type !== 'set') throw new StateError('incorrectState');
-          if (!ctx.id) throw new StateError('idNotDefined');
-          const setID = await crud.setOneById(ctx.id, ev.data);
-          if (setID !== ctx.id) throw new StateError('idNotMatch');
-        },
-
-        delete: async (ctx, ev) => {
-          if (ev.type !== 'delete') throw new StateError('incorrectState');
-          if (!ctx.id) throw new StateError('idNotDefined');
-          const deletedID = await crud.deleteOneById(ctx.id);
-          if (deletedID !== ctx.id) throw new StateError('idNotMatch');
-        },
-
-        remove: async (ctx, ev) => {
-          if (ev.type !== 'remove') throw new StateError('incorrectState');
-          if (!ctx.id) throw new StateError('idNotDefined');
-          const removedID = await crud.removeOneById(ctx.id);
-          if (removedID !== ctx.id) throw new StateError('idNotMatch');
-        },
-
-        retrieve: async (ctx, ev) => {
-          if (ev.type !== 'retrieve') throw new StateError('incorrectState');
-          if (!ctx.id) throw new StateError('idNotDefined');
-          const retrievedID = await crud.retrieveOneById(ctx.id);
-          if (retrievedID !== ctx.id) throw new StateError('idNotMatch');
-        },
-
-        fetch: async (ctx, ev) => {
+        fetch: (_, ev) => {
           if (ev.type !== 'fetch') throw new StateError('incorrectState');
           if (!ev.id) throw new StateError('idNotDefined');
-          const fetchData = await crud.readOneById(ev.id);
-          if (fetchData.id !== ctx.id) throw new StateError('idNotMatch');
-          return fetchData;
+          return crud.readOneById(ev.id);
         },
-        refetch: async (ctx, ev) => {
-          if (ev.type !== 'refetch') throw new StateError('incorrectState');
-          if (!ctx.id) throw new StateError('idNotDefined');
-          const fetchData = await crud.readOneById(ctx.id);
-          if (fetchData.id !== ctx.id) throw new Error('idNotMatch');
-          return fetchData;
+        refetch: (ctx, ev) => {
+          if (ev.type !== 'refetch')
+            throw new StateError('incorrectState');
+          if (!ctx._id) throw new StateError('idNotDefined');
+          return crud.readOneById(ctx._id);
         },
       },
-    }
+    },
   );
 
   return machine;

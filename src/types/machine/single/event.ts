@@ -1,8 +1,8 @@
-import { DocumentData } from '../../data';
+import { DeepPartial } from 'core';
+import { Entity, WithoutId } from 'core-data';
 
-export type SingleEvent<T extends DocumentData> =
-  | { type: 'update'; data: T }
-  | { type: 'set'; data: T }
+export type SingleEvent<T extends Entity> =
+  | { type: 'update'; data: WithoutId<DeepPartial<T>> }
   | { type: 'delete' }
   | { type: 'remove' }
   | { type: 'retrieve' }
@@ -10,5 +10,3 @@ export type SingleEvent<T extends DocumentData> =
   | { type: 'fetch'; id: string }
   | { type: 'refetch' };
 
-
-  type Tester<T extends string>  = `${T}`

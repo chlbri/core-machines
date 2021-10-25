@@ -1,4 +1,4 @@
-import { STATE_ERROR_STRINGS } from '../constants/strings';
+import { STATE_ERROR_STRINGS } from './strings';
 import { ErrorStateString } from '../types/error';
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
