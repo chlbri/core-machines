@@ -6,5 +6,9 @@ export type SingleEvent<T extends DocumentData> =
   | { type: 'delete' }
   | { type: 'remove' }
   | { type: 'retrieve' }
+  | { type: 'save' }
   | { type: 'fetch'; id: string }
   | { type: 'refetch' };
+
+
+  type Tester<T extends string>  = `${T}`

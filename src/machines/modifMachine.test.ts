@@ -1,8 +1,8 @@
 import produce from 'immer';
 import { generateAsyncMachineTest } from 'test-machine';
 import { Event } from 'xstate';
-import { db } from '../.config/test/db';
 import { DataMock } from '../.config/test/types';
+import { db } from '../.config/test';
 import { mockDAO } from '../.config/test/values';
 import { SingleEvent, SingleContext } from '../types';
 import createModifMachine from './modifMachine';

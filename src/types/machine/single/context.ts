@@ -1,20 +1,21 @@
-import { DocumentData } from '../../data';
+import { DeepPartial } from 'core';
 import {
   AsyncStateErrorString,
   ErrorStateString,
   InternalStateErrorString,
 } from '../../error';
 
-export type SingleContext<T extends DocumentData> = {
+export type SingleContext<T> = {
   iterator: number;
   id?: string;
   current?: T;
   previous?: T;
+  mutations?: DeepPartial<T>[];
   error?: ErrorStateString;
   needToFecth: number;
 };
 
-export type SingleContextSuccess<T extends DocumentData> = {
+export type SingleContextSuccess<T> = {
   current: T;
   error: undefined;
 };

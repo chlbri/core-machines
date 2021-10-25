@@ -5,7 +5,7 @@ import { DataConverter } from '../types';
 import { CRUD, QueryOptions, QueryParams } from '../types/crud';
 import StateError from '../types/error';
 // import StateError from '../types/error';
-import { MultiContext, MultiEvent } from '../types/machine/multi';
+import { MultiContext, MultiEvent, MultiMachine } from '../types/machine/multi';
 
 // export type DAOSingle<T> = CRUD<T>;
 
@@ -32,7 +32,7 @@ export type DAOList<T> = Pick<
 export default function createListMachine<T extends { id?: string }>(
   dao: DAOList<T>,
   { col, pageSize, filters = {}, options = {} }: CreateListMachineOptions<T>
-) {
+) /* : MultiMachine<T> */ {
   const asyncHandle = {
     onDone: {
       target: 'success',
@@ -73,7 +73,16 @@ export default function createListMachine<T extends { id?: string }>(
           entry,
           invoke: {
             src: 'fetch',
-            onDone: 'success',
+            onDone: {
+              target: 'success',
+              actions: [
+                'assign_previous',
+                'assign_current',
+                'assign_total',
+                'assign_totalPages',
+                'assign_selectedValues',
+              ],
+            },
             onError: [
               {
                 cond: 'isEmpty',
@@ -82,25 +91,38 @@ export default function createListMachine<T extends { id?: string }>(
               { target: 'error' },
             ],
           },
-          exit: ['fetchNextEnd'],
-        },
-
-        successAssignments: {
-          entry,
-          always: {
-            target: 'success',
-            actions: [
-              'assignPrevious',
-              'assignCurrent',
-              'assignTotal',
-              'assignTotalPages',
-            ],
-          },
+          exit: ['fetchNextEnd', 'assign_lastId'],
         },
 
         refetching: {},
-        deleting: {},
-        removing: {},
+        deleting: {
+          entry,
+          invoke: {
+            src: 'delete',
+            onDone: {
+              target: 'success',
+            },
+            onError: [
+              {
+                target: 'error',
+              },
+            ],
+          },
+        },
+        removing: {
+          entry,
+          invoke: {
+            src: 'remove',
+            onDone: {
+              target: 'success',
+            },
+            onError: [
+              {
+                target: 'error',
+              },
+            ],
+          },
+        },
 
         internalError: {
           entry,
@@ -109,6 +131,9 @@ export default function createListMachine<T extends { id?: string }>(
         success: {
           entry,
           on: {
+            FETCH: {
+              target: 'fetching',
+            },
             PREVIOUS: [
               {
                 cond: 'canGoToPrevPage',
@@ -128,6 +153,8 @@ export default function createListMachine<T extends { id?: string }>(
               },
               { target: 'internalError' },
             ],
+            DELETE: 'deleting',
+            REMOVE: 'removing',
           },
           // on: onEvents,
         },
@@ -153,9 +180,8 @@ export default function createListMachine<T extends { id?: string }>(
         }),
         goToNextPage: assign({ currentPage: (ctx) => ctx.currentPage + 1 }),
         goToPrevPage: assign({ currentPage: (ctx) => ctx.currentPage - 1 }),
-        assignSelectedValues: assign({
+        assign_selectedValues: assign({
           selectedValues: (ctx) => {
-            if (!ctx.currentPage) throw new Error();
             if (!ctx.current) throw new Error();
 
             const first = ctx.pageSize * ctx.currentPage;
@@ -163,13 +189,13 @@ export default function createListMachine<T extends { id?: string }>(
             return ctx.current.slice(first, last);
           },
         }),
-        assignPrevious: assign({
+        assign_previous: assign({
           previous: (ctx) => ctx.current,
         }),
-        assignCurrent: assign({
+        assign_current: assign({
           current: (ctx, event: any) => {
-            if (!event.data) throw new Error();
-            const datas = event.data;
+            if (!event?.data?.data) throw new Error();
+            const datas = event.data.data;
             if (!Array.isArray(datas)) throw new Error();
             const isArrayOfT = datas.map((data) => !!data.id);
             if (!isArrayOfT) throw new Error();
@@ -179,7 +205,7 @@ export default function createListMachine<T extends { id?: string }>(
           },
         }),
 
-        assignTotalPages: assign({
+        assign_totalPages: assign({
           totalPages: (ctx) => {
             if (!ctx.total) throw new Error();
             if (ctx.pageSize === 0) throw new Error();
@@ -188,37 +214,39 @@ export default function createListMachine<T extends { id?: string }>(
             return isZero ? 1 : division;
           },
         }),
-        assignTotal: assign({
+        assign_total: assign({
           total: (ctx) => {
             if (!ctx.current) throw new Error();
 
             return ctx.current.length;
           },
         }),
-        assignPageSize: assign({
-          pageSize: (ctx, event) =>
-            event.type === 'CHANGE_PAGE_SIZE' ? event.pageSize : ctx.pageSize,
-        }),
-
-        canGoToPrevPage: assign({
-          canGoToPrevPage: (ctx) => (ctx.currentPage > 0 ? true : undefined),
-        }),
-        assignTotalExceedDataBaseTotalError: assign({
-          totalExceedTotalFromDatabase: (ctx) => {
-            if (!ctx.total) throw new Error();
-            if (!ctx.totalFromDataBase) throw new Error();
-
-            return ctx.total > ctx.totalFromDataBase ? true : undefined;
+        assign_pageSize: assign({
+          pageSize: (ctx, event) => {
+            if (event.type !== 'CHANGE_PAGE_SIZE') throw new Error();
+            return event.pageSize;
           },
         }),
-        canNextFetch: assign({
+
+        assign_canGoToPrevPage: assign({
+          canGoToPrevPage: (ctx) => (ctx.currentPage > 0 ? true : undefined),
+        }),
+        assign_totalExceedDataBaseTotalError: assign({
+          totalExceedTotalFromDatabase: (ctx) => {
+            if (!ctx.total) throw new Error();
+            if (!ctx.totalFromDatabase) throw new Error();
+
+            return ctx.total > ctx.totalFromDatabase ? true : undefined;
+          },
+        }),
+        assign_canNextFetch: assign({
           canNextFetch: (ctx) => {
             if (!ctx.total) throw new Error();
-            if (!ctx.totalFromDataBase) throw new Error();
+            if (!ctx.totalFromDatabase) throw new Error();
             if (!ctx.totalPages) throw new Error();
             if (!ctx.maxFromDatabase) throw new Error();
             return ctx.currentPage === ctx.totalPages - 1 &&
-              ctx.total < ctx.totalFromDataBase &&
+              ctx.total < ctx.totalFromDatabase &&
               ctx.total < ctx.maxFromDatabase
               ? true
               : undefined;
@@ -227,25 +255,21 @@ export default function createListMachine<T extends { id?: string }>(
         fetchNextStart: assign({
           nextFetching: (_) => true,
         }),
-        assignLastId: assign({
-          lastId: (ctx) => {
-            if (!ctx.current) throw new Error();
-            if (!ctx.current.length) throw new Error();
-            return ctx.current[0].id;
-          },
+        assign_lastId: assign({
+          lastId: (ctx) => ctx.current?.[0]?.id,
         }),
         fetchNextEnd: assign({
           nextFetching: (_) => undefined,
         }),
 
-        canGoToNextPage: assign({
+        assign_canGoToNextPage: assign({
           canGoToNextPage: (ctx) => {
             if (!ctx.totalPages) throw new Error();
 
             return ctx.currentPage < ctx.totalPages - 2 ? true : undefined;
           },
         }),
-        assignError: assign({
+        assign_error: assign({
           error: (_, _event: any) => {
             if (!_event.data) return undefined;
             const data = _event.data;
@@ -284,7 +308,7 @@ export default function createListMachine<T extends { id?: string }>(
         },
         remove: async (ctx, ev) => {
           if (ev.type !== 'REMOVE') throw new Error();
-          return await dao.deleteOneById(ev.id, options);
+          return await dao.removeOneById(ev.id, options);
         },
       },
       guards: {

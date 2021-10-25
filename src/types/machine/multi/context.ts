@@ -13,11 +13,10 @@ export type MultiContext<T extends DocumentData> = {
   selectedValues?: T[];
   currentPage: number;
   col: string;
-  converter?: DataConverter<T> | null;
   pageSize: number;
   canGoToPrevPage?: true;
   canGoToNextPage?: true;
-  totalFromDataBase?: number;
+  totalFromDatabase?: number;
   totalPages?: number;
   total?: number;
   totalExceedTotalFromDatabase?: true;
@@ -26,7 +25,7 @@ export type MultiContext<T extends DocumentData> = {
   nextFetching?: true;
   needToFecth?: number;
   error?: ErrorStateString;
-  ids?: string[];
+  // ids?: string[];
 };
 
 export type MultiContextPending = {

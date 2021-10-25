@@ -1,17 +1,9 @@
+import dayjs from 'dayjs';
 import produce from 'immer';
 import { mockFn } from 'jest-mock-extended';
 import { generateAsyncMachineTest } from 'test-machine';
-import {
-  Event,
-  EventObject,
-  StateMachine,
-  StateValue,
-  Typestate,
-} from 'xstate';
-import { mockDAO, db } from '../.config/test';
-import { DataMock } from '../.config/test/types';
-// import { mockDAO } from '../.config/test/values';
-import { MultiContext, MultiEvent } from '../types';
+import { EventObject, StateMachine, StateValue, Typestate } from 'xstate';
+import { db, mockDAO } from '../.config/test';
 import createListMachine from './listMachine';
 
 // import { keys } from 'ts-transformer-keys';
@@ -35,30 +27,26 @@ const manyData = [
   },
 ];
 
-const oneData = manyData[0];
+// type TestContext = {
+//   state?: StateValue;
+//   context?: MultiContext<DataMock>;
+//   beforeAll?: TestConfig;
+//   afterAll?: TestConfig;
+// };
 
-type TestConfig = { fn: () => any; timeout?: number | undefined };
+// type TestContexts = {
+//   error: TestContext;
+//   internalError: TestContext;
+//   success: TestContext;
+//   event: Event<MultiEvent>;
+// };
 
-type TestContext = {
-  state?: StateValue;
-  context?: MultiContext<DataMock>;
-  beforeAll?: TestConfig;
-  afterAll?: TestConfig;
-};
-
-type TestContexts = {
-  error: TestContext;
-  internalError: TestContext;
-  success: TestContext;
-  event: Event<MultiEvent>;
-};
-
-const eFETCH: TestContexts = {
-  event: 'FETCH',
-  error: {},
-  internalError: {},
-  success: {},
-};
+// const eFETCH: TestContexts = {
+//   event: 'FETCH',
+//   error: {},
+//   internalError: {},
+//   success: {},
+// };
 
 // const eventDelete: Event<MultiEvent<DataMock>> = 'delete';
 // const eventRemove: Event<MultiEvent<DataMock>> = 'remove';
@@ -151,6 +139,7 @@ describe('Existence Test', () => {
       needToFecth: 0,
       col: '',
       pageSize: 20,
+      maxFromDatabase: 1000,
       currentPage: 0,
     };
     expect(actual).toEqual(expected);
@@ -176,24 +165,24 @@ describe('Existence Test', () => {
       'goToLastPage',
       'goToNextPage',
       'goToPrevPage',
-      'assignSelectedValues',
-      'totalPages',
-      'total',
-      'pageSize',
-      'canGotoPrevPage',
-      'assignTotalExceedDataBaseTotalError',
-      'canNextFetch',
+      'assign_selectedValues',
+      'assign_totalPages',
+      'assign_total',
+      'assign_pageSize',
+      'assign_canGoToPrevPage',
+      'assign_totalExceedDataBaseTotalError',
+      'assign_canNextFetch',
       'fetchNextStart',
       'fetchNextEnd',
-      'canGotoNextPage',
-      'assignError',
+      'assign_canGoToNextPage',
+      'assign_error',
     ].forEach(actionExists);
   });
 
   describe('Guards', () => {
     [
       'canNextFetch',
-      'canGotoNextPage',
+      'canGoToNextPage',
       'canGoToPrevPage',
       'nextFetching',
       'targetPageIsWithinBounds',
@@ -203,84 +192,19 @@ describe('Existence Test', () => {
   describe('Services', () => {
     ['fetch', 'refetch', 'delete', 'remove'].forEach(serviceExists);
   });
-
-  // it('State `idle` shoulds exist', () => {
-  //   const _machine = createListMachine(mockDAO, { col: 'news' });
-  //   const actual = Object.keys(_machine.states);
-  //   expect(actual).toContain('idle');
-  // });
-  // it('State `createMany` shoulds exist', () => {
-  //   const _machine = createListMachine(mockDAO, { col: 'news' });
-  //   const actual = Object.keys(_machine.states);
-  //   expect(actual).toContain('createMany');
-  // });
 });
 
-function testAction(state: string, contexts: TestContexts) {
-  describe(state, () => {
-    describe('Error', () => {
-      const mock = produce(mockDAO, (draft) => {
-        draft.readMany = mockFn<typeof mockDAO.readMany>().mockRejectedValue(
-          new Error()
-        );
-      });
-      const { state: initialState, context: initialContext } = contexts.error;
-      generateAsyncMachineTest({
-        initialState,
-        initialContext,
-        machine: createListMachine(mock, { col: '' }),
-        events: [contexts.event],
-        values: ['idle', state, 'error'],
-        timeout: 10,
-      });
-    });
-
-    describe('internalError', () => {
-      const mock = produce(mockDAO, (draft) => {
-        draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(
-          []
-        );
-      });
-      const { state: initialState, context: initialContext } =
-        contexts.internalError;
-      generateAsyncMachineTest({
-        initialState,
-        initialContext,
-        machine: createListMachine(mock, { col: '' }),
-        events: [contexts.event],
-        values: ['idle', state, 'internalError'],
-        timeout: 100,
-      });
-    });
-
-    describe('success', () => {
-      const mock = produce(mockDAO, (draft) => {
-        draft.readMany =
-          mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
-        draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(6);
-      });
-      const { state: initialState, context: initialContext } = contexts.success;
-      generateAsyncMachineTest({
-        initialState,
-        initialContext,
-        machine: createListMachine(mock, { col: '' }),
-        events: [contexts.event],
-        values: ['idle', state, 'success'],
-        timeout: 100,
-      });
-    });
-  });
-}
-
 describe('Actions', () => {
-  // const previousMock = produce(mockDAO, (draft) => {
-  //   draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
-  //   draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(6);
-  // });
-  describe('fetching', () => {
-    
+  describe('FETCH', () => {
     generateAsyncMachineTest({
-      machine: createListMachine(mockDAO, { col: '' }),
+      machine: createListMachine(
+        produce(mockDAO, (draft) => {
+          draft.readMany = mockFn<typeof mockDAO.readMany>().mockRejectedValue(
+            new Error()
+          );
+        }),
+        { col: '' }
+      ),
       events: ['FETCH'],
       values: ['idle', 'fetching', 'error'],
       timeout: 100,
@@ -291,7 +215,9 @@ describe('Actions', () => {
         produce(mockDAO, (draft) => {
           draft.readMany =
             mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
-          draft.count = mockFn<typeof mockDAO.count>().mockRejectedValue(new Error());
+          draft.count = mockFn<typeof mockDAO.count>().mockRejectedValue(
+            new Error()
+          );
         }),
         { col: '' }
       ),
@@ -316,20 +242,31 @@ describe('Actions', () => {
 
       invite: 'Data is empty',
     });
-    generateAsyncMachineTest({
-      machine: createListMachine(
-        produce(mockDAO, (draft) => {
-          draft.readMany =
-            mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
 
-          draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
-        }),
-        { col: '' }
-      ),
-      events: ['FETCH'],
-      values: ['idle', 'fetching', 'success'],
-      timeout: 100,
-      invite: 'It has data',
+    describe('It has data', () => {
+      const mock = produce(mockDAO, (draft) => {
+        draft.readMany =
+          mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+
+        draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      });
+      generateAsyncMachineTest({
+        machine: createListMachine(mock, { col: '' }),
+        events: ['FETCH'],
+        values: ['idle', 'fetching', 'success'],
+        timeout: 100,
+        // subscribers: [
+        //   (state) => {
+        //     console.log('state.context', '=>', state.context);
+        //   },
+        // ],
+      });
+      it('``readMany`` shoulds be called', () => {
+        expect(mock.readMany).toHaveBeenCalledTimes(1);
+      });
+      it('``count`` shoulds be called', () => {
+        expect(mock.count).toHaveBeenCalledTimes(1);
+      });
     });
   });
   describe('PREVIOUS', () => {
@@ -339,10 +276,9 @@ describe('Actions', () => {
     });
     generateAsyncMachineTest({
       machine: createListMachine(mock, { col: '' }),
-      events: ['PREVIOUS'],
-      values: ['success', 'internalError'],
+      events: ['FETCH', 'PREVIOUS'],
+      values: ['idle', 'fetching', 'success', 'internalError'],
       timeout: 100,
-      initialState: 'success',
       invite: "It doesn't have data",
     });
     generateAsyncMachineTest({
@@ -356,12 +292,11 @@ describe('Actions', () => {
     });
     generateAsyncMachineTest({
       machine: createListMachine(mock, { col: '' }),
-      events: ['PREVIOUS'],
-      values: ['success', 'success'],
+      events: ['FETCH', 'PREVIOUS'],
+      values: ['idle', 'fetching', 'success', 'success'],
       timeout: 100,
-      initialState: 'success',
       initialContext: { canGoToPrevPage: true },
-      invite: 'It have previous page',
+      invite: 'It has previous page',
     });
   });
   describe('NEXT', () => {
@@ -397,11 +332,11 @@ describe('Actions', () => {
       initialState: 'success',
       initialContext: { canNextFetch: true, current: db },
       invite: 'It have next page online only',
-      subscribers: [
-        (state) => {
-          console.log('state', '=>', state.value);
-        },
-      ],
+      // subscribers: [
+      //   (state) => {
+      //     console.log('state', '=>', state.value);
+      //   },
+      // ],
     });
     generateAsyncMachineTest({
       machine: createListMachine(mock, { col: '' }),
@@ -416,6 +351,226 @@ describe('Actions', () => {
       //     console.log('state', '=>', state.value);
       //   },
       // ],
+    });
+  });
+
+  describe('DELETE', () => {
+    const __db = [...db];
+    const errorMock = produce(mockDAO, (draft) => {
+      draft.readMany =
+        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
+      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+    });
+    const successMock = produce(mockDAO, (draft) => {
+      draft.readMany =
+        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
+      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.deleteOneById = mockFn<
+        typeof mockDAO.deleteOneById
+      >().mockImplementation(async (id) => id);
+    });
+    const successAndFetchMock = produce(mockDAO, (draft) => {
+      draft.readMany =
+        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
+      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.deleteOneById = mockFn<
+        typeof mockDAO.deleteOneById
+      >().mockImplementation(async (id) => {
+        const index = __db.findIndex((data) => data.id === id);
+        __db.length = 0;
+        if (index !== -1)
+          __db.push(
+            ...produce(db, (draft) => {
+              (draft[index] as any).deletedAt = new Date();
+            })
+          );
+        return id;
+      });
+    });
+
+    const idDelete = 'a06fcaca-fbdf-4af3-9dd0-4aa11d44530c' as const;
+
+    const deleteEvent = {
+      type: 'DELETE',
+      id: idDelete,
+    } as const;
+
+    generateAsyncMachineTest({
+      machine: createListMachine(errorMock, { col: '' }),
+      events: ['FETCH', deleteEvent],
+      values: ['idle', 'fetching', 'success', 'deleting', 'error'],
+      timeout: 100,
+      invite: '`Delete` method not implemented or return error',
+      // subscribers: [
+      //   (state) => {
+      //     console.log('state', '=>', state.value);
+      //   },
+      // ],
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(successMock, { col: '' }),
+      events: ['FETCH', deleteEvent],
+      values: ['idle', 'fetching', 'success', 'deleting', 'success'],
+      timeout: 100,
+      invite: '`Delete` method returned good id',
+    });
+    generateAsyncMachineTest({
+      machine: createListMachine(successAndFetchMock, { col: '' }),
+      events: ['FETCH', deleteEvent, 'FETCH'],
+      values: [
+        'idle',
+        'fetching',
+        'success',
+        'deleting',
+        'success',
+        'fetching',
+        'success',
+      ],
+      timeout: 100,
+      invite: '`Delete` method returned good id and fetch',
+      contexts: [
+        {
+          iterator: 0,
+          needToFecth: 0,
+          col: '',
+          pageSize: 20,
+          currentPage: 0,
+          maxFromDatabase: 1000,
+        },
+        { iterator: 1 },
+        { iterator: 2 },
+        { iterator: 3 },
+        { iterator: 4 },
+        { iterator: 5 },
+        { iterator: 6 },
+      ],
+      subscribers: [
+        (state) => {
+          console.log('state', '=>', state.value);
+        },
+      ],
+    });
+    it('data with the specific `id` shoulds be deleted', () => {
+      const find = __db.find(({ id }) => id === idDelete);
+      console.log('find', find);
+      if (!find?.deletedAt) {
+        expect(true).toBeFalsy();
+      } else {
+        expect(find.deletedAt).toBeBefore(dayjs().toDate());
+      }
+    });
+    // beforeAll(() => {
+    //   __db.length = 0;
+    //   __db.push(...db);
+    // });
+    afterAll(() => {
+      __db.length = 0;
+      __db.push(...db);
+    });
+  });
+
+  describe('REMOVE', () => {
+    const __db = [...db];
+    const errorMock = produce(mockDAO, (draft) => {
+      draft.readMany =
+        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
+      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+    });
+    const successMock = produce(mockDAO, (draft) => {
+      draft.readMany =
+        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
+      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.removeOneById = mockFn<
+        typeof mockDAO.removeOneById
+      >().mockImplementation(async (id) => id);
+    });
+
+    const successAndFetchMock = produce(mockDAO, (draft) => {
+      draft.readMany =
+        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
+      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.removeOneById = mockFn<
+        typeof mockDAO.removeOneById
+      >().mockImplementation(async (id) => {
+        const index = __db.findIndex((data) => data.id === id);
+        if (index !== -1) __db.splice(index, 1);
+        return id;
+      });
+    });
+
+    const idRemove = 'a06fcaca-fbdf-4af3-9dd0-4aa11d44530c' as const;
+
+    const removeEvent = {
+      type: 'REMOVE',
+      id: idRemove,
+    } as const;
+
+    generateAsyncMachineTest({
+      machine: createListMachine(errorMock, { col: '' }),
+      events: ['FETCH', removeEvent],
+      values: ['idle', 'fetching', 'success', 'removing', 'error'],
+      timeout: 100,
+      invite: '`Remove` method not implemented or return error',
+      // subscribers: [
+      //   (state) => {
+      //     console.log('state', '=>', state.value);
+      //   },
+      // ],
+    });
+
+    generateAsyncMachineTest({
+      machine: createListMachine(successMock, { col: '' }),
+      events: ['FETCH', removeEvent],
+      values: ['idle', 'fetching', 'success', 'removing', 'success'],
+      timeout: 100,
+      invite: '`remove` method returned good id',
+    });
+
+    generateAsyncMachineTest({
+      machine: createListMachine(successAndFetchMock, { col: '' }),
+      events: ['FETCH', removeEvent, 'FETCH'],
+      values: [
+        'idle',
+        'fetching',
+        'success',
+        'removing',
+        'success',
+        'fetching',
+        'success',
+      ],
+      timeout: 100,
+      invite: '`remove` method returned good id and fetch',
+      contexts: [
+        {
+          iterator: 0,
+          needToFecth: 0,
+          col: '',
+          pageSize: 20,
+          currentPage: 0,
+          maxFromDatabase: 1000,
+        },
+        { iterator: 1 },
+        { iterator: 2 },
+        { iterator: 3 },
+        { iterator: 4 },
+        { iterator: 5 },
+        { iterator: 6 },
+      ],
+      subscribers: [
+        (state) => {
+          console.log('state', '=>', state.value);
+        },
+      ],
+    });
+
+    it('data with the specific `id` shoulds be removed', () => {
+      const find = __db.find(({ id }) => id === idRemove);
+      expect(find).toBeUndefined();
+    });
+
+    afterAll(() => {
+      __db.length = 0;
+      __db.push(...db);
     });
   });
   // testAction('NEXT', eFETCH);

@@ -200,42 +200,42 @@ export default function createModifMachine<T>(crud: DAOSingle<T>) {
           }
           if (!ctx.id) throw new StateError('idNotDefined');
           const updatedID = await crud.updateOneById(ctx.id, ev.data);
-          if (updatedID !== ctx.id) throw new Error('idNotMatch');
+          if (updatedID !== ctx.id) throw new StateError('idNotMatch');
         },
 
         set: async (ctx, ev) => {
           if (ev.type !== 'set') throw new StateError('incorrectState');
           if (!ctx.id) throw new StateError('idNotDefined');
           const setID = await crud.setOneById(ctx.id, ev.data);
-          if (setID !== ctx.id) throw new Error('idNotMatch');
+          if (setID !== ctx.id) throw new StateError('idNotMatch');
         },
 
         delete: async (ctx, ev) => {
           if (ev.type !== 'delete') throw new StateError('incorrectState');
           if (!ctx.id) throw new StateError('idNotDefined');
           const deletedID = await crud.deleteOneById(ctx.id);
-          if (deletedID !== ctx.id) throw new Error('idNotMatch');
+          if (deletedID !== ctx.id) throw new StateError('idNotMatch');
         },
 
         remove: async (ctx, ev) => {
           if (ev.type !== 'remove') throw new StateError('incorrectState');
           if (!ctx.id) throw new StateError('idNotDefined');
           const removedID = await crud.removeOneById(ctx.id);
-          if (removedID !== ctx.id) throw new Error('idNotMatch');
+          if (removedID !== ctx.id) throw new StateError('idNotMatch');
         },
 
         retrieve: async (ctx, ev) => {
           if (ev.type !== 'retrieve') throw new StateError('incorrectState');
           if (!ctx.id) throw new StateError('idNotDefined');
           const retrievedID = await crud.retrieveOneById(ctx.id);
-          if (retrievedID !== ctx.id) throw new Error('idNotMatch');
+          if (retrievedID !== ctx.id) throw new StateError('idNotMatch');
         },
 
         fetch: async (ctx, ev) => {
           if (ev.type !== 'fetch') throw new StateError('incorrectState');
           if (!ev.id) throw new StateError('idNotDefined');
           const fetchData = await crud.readOneById(ev.id);
-          if (fetchData.id !== ctx.id) throw new Error('idNotMatch');
+          if (fetchData.id !== ctx.id) throw new StateError('idNotMatch');
           return fetchData;
         },
         refetch: async (ctx, ev) => {
