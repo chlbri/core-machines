@@ -2,7 +2,7 @@ import {
   ASYNC_STATE_ERROR_STRINGS,
   INTERNAL_STATE_ERROR_STRINGS,
   STATE_ERROR_STRINGS,
-} from '../functions/strings';
+} from '../constants/strings';
 
 export type AsyncStateErrorString = typeof ASYNC_STATE_ERROR_STRINGS[number];
 

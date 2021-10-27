@@ -1,6 +1,6 @@
 import { NFunction } from 'core';
-import ReturnData from 'core-promises';
-import { assign, createMachine, interpret, StateMachine } from 'xstate';
+import ReturnData, { isTimeout, _ReturnData } from 'core-promises';
+import { assign, createMachine, sendParent, StateMachine } from 'xstate';
 import { RDContext } from './context';
 import { RDEvent } from './event';
 import { RDState } from './state';
@@ -16,8 +16,10 @@ type RDStateKeys = keyof Pick<
   | 'isTimeoutError'
 >;
 
-function guardRD(func: RDStateKeys) {
-  const out = (_: any, ev: any) => {
+type StateType = 'atomic' | 'compound' | 'parallel' | 'final' | 'history';
+
+function guardRD<TC>(func: RDStateKeys) {
+  const out = (_: TC, ev: any) => {
     const data = ev.data;
     if (data instanceof ReturnData) {
       return data[func];
@@ -75,6 +77,8 @@ export function createRDMachine<I extends any, O>(
       SEND: 'Pending',
     },
   };
+
+  const final = { ...state, type: 'final' as StateType };
   return createMachine<RDContext<O>, RDEvent<I>, RDState<O>>(
     {
       context: {
@@ -91,13 +95,27 @@ export function createRDMachine<I extends any, O>(
             onError: guardedTransitions,
           },
         },
-        ClientError: state,
-        Information: state,
-        PermissionError: state,
-        Redirect: state,
-        ServerError: state,
-        Success: state,
-        TimeoutError: state,
+        ClientError: final,
+        Information: final,
+        PermissionError: final,
+        Redirect: final,
+        ServerError: final,
+        Success: final,
+        TimeoutError: {
+          entry: [
+            sendParent(ctx => {
+              if (!ctx.data) return { type: '' };
+              const data = ctx.data;
+              if (!isTimeout(data)) {
+                return { type: '' };
+              }
+              return { type: 'SEND', data: { status: data.status } };
+            }),
+            () => {
+              console.log('respond to');
+            },
+          ],
+        },
       },
     },
     {
@@ -107,8 +125,40 @@ export function createRDMachine<I extends any, O>(
           data: (_, ev: any) => {
             const data = ev.data;
             if (data instanceof ReturnData) {
-              return data;
+              return data.map<_ReturnData<O, any>>({
+                client: (status, message) => ({
+                  status,
+                  message,
+                }),
+                information: (status, payload, message) => ({
+                  status,
+                  payload,
+                  message,
+                }),
+                permission: (status, payload, notPermitteds) => ({
+                  status,
+                  payload,
+                  notPermitteds,
+                }),
+                redirect: (status, payload, message) => ({
+                  status,
+                  payload,
+                  message,
+                }),
+                server: (status, message) => ({
+                  status,
+                  message,
+                }),
+                success: (status, payload) => ({
+                  status,
+                  payload,
+                }),
+                timeout: status => ({
+                  status,
+                }),
+              });
             }
+            return undefined;
           },
         }),
       },
@@ -124,15 +174,3 @@ export function createRDMachine<I extends any, O>(
     },
   );
 }
-
-async function tt({ id, password }: { id?: string; password: string }) {
-  return new ReturnData({
-    status: 200,
-    payload: 2,
-  });
-}
-
-// #region Test
-const interp = interpret(createRDMachine(tt));
-interp.send({ type: 'SEND', data: { password: '' } });
-// #endregion

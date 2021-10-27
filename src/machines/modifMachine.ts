@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { CRUD, Entity, QueryOptions } from 'core-data';
-import ReturnData from 'core-promises';
-import produce from 'immer';
+import ReturnData, { error } from 'core-promises';
+import produce, { createDraft, original } from 'immer';
 import {
   assign,
   createMachine as create,
+  send,
   TransitionsConfig,
 } from 'xstate';
+import { reduceMutations } from '../functions/rd';
 import StateError from '../types/error';
 import {
   SingleContext,
@@ -14,6 +16,8 @@ import {
   SingleTypeState,
 } from '../types/machine/single';
 import { DPW } from '../types/_config';
+import { assign as _assign } from '@xstate/immer';
+import { createRDMachine } from './returnData';
 
 export type DAOSingle<T extends Entity> = Pick<
   CRUD<T>,
@@ -25,11 +29,25 @@ export type DAOSingle<T extends Entity> = Pick<
   | 'readOneById'
 >;
 
+type Props<T extends Entity> = {
+  crud: DAOSingle<T>;
+  options?: QueryOptions;
+  initialContext?: SingleContext<T>;
+};
+
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-export default function createModifMachine<T extends Entity>(
-  crud: DAOSingle<T>,
-  options?: QueryOptions,
-) {
+export default function createModifMachine<T extends Entity>({
+  crud,
+  options,
+  initialContext,
+}: Props<T>) {
+  const updateOneById = createRDMachine(crud.updateOneById);
+  const setOneById = createRDMachine(crud.setOneById);
+  const deleteOneById = createRDMachine(crud.deleteOneById);
+  const removeOneById = createRDMachine(crud.removeOneById);
+  const retrieveOneById = createRDMachine(crud.retrieveOneById);
+  const readOneById = createRDMachine(crud.readOneById);
+
   const asyncHandle = {
     onDone: {
       target: 'success',
@@ -49,17 +67,19 @@ export default function createModifMachine<T extends Entity>(
 
   const onEvents: TransitionsConfig<SingleContext<T>, SingleEvent<T>> = {
     update: {
-      target: 'update',
+      target: 'pending',
+      actions: 'update',
     },
 
     delete: {
-      target: 'delete',
+      target: 'pending',
+      actions: 'delete',
     },
-    remove: {
-      target: 'remove',
-    },
+    remove: 'remove',
+    set: 'set',
     retrieve: {
-      target: 'retrieve',
+      target: 'pending',
+      actions: 'retrieve',
     },
     fetch: {
       target: 'fetch',
@@ -76,7 +96,7 @@ export default function createModifMachine<T extends Entity>(
   >(
     {
       initial: 'idle',
-      context: {
+      context: initialContext ?? {
         iterator: 0,
         needToFecth: 0,
         mutations: [],
@@ -85,32 +105,110 @@ export default function createModifMachine<T extends Entity>(
         idle: {
           on: onEvents,
         },
-        update: {
-          entry,
-          always: {
-            actions: 'update',
-            target: 'pending',
-          },
-        },
+
         pending: {
           entry,
           on: {
-            save: {},
+            save: 'save',
           },
+        },
+        save: {
+          invoke: {
+            src: 'save',
+            onDone: {
+              target: 'success',
+              actions: ['addNeedToFetch'],
+            },
+
+            onError: [
+              {
+                cond: 'isError_idNotMatch',
+                actions: ['addNeedToFetch', 'assignAsyncError'],
+                target: 'success',
+              },
+              { target: 'error', actions: [] },
+            ],
+          },
+          on: {
+            SEND: {
+              target: 'success',
+              actions: [
+                'addNeedToFetch',
+                () => {
+                  console.log('answer to');
+                },
+              ],
+            },
+          },
+          entry: [
+            entry,
+            send(
+              (ctx, ev) => {
+                if (ev.type !== 'remove') return { type: 'nothing' };
+                return { type: 'SEND', data: { id: ctx._id } };
+              },
+              { to: 'remove' },
+            ),
+          ],
+          exit: 'rinitMutations',
         },
 
-        delete: {
-          entry,
-          always: {
-            actions: 'delete',
-            target: 'pending',
-          },
-        },
         remove: {
+          invoke: {
+            id: 'remove',
+            src: removeOneById,
+            onDone: {
+              target: 'success',
+              actions: ['addNeedToFetch'],
+            },
+
+            onError: [
+              {
+                cond: 'isError_idNotMatch',
+                actions: ['addNeedToFetch', 'assignAsyncError'],
+                target: 'success',
+              },
+              { target: 'error', actions: [] },
+            ],
+          },
+          on: {
+            SEND: {
+              target: 'success',
+              actions: [
+                'addNeedToFetch',
+                () => {
+                  console.log('answer to');
+                },
+              ],
+            },
+          },
+          entry: [
+            entry,
+            send(
+              (ctx, ev) => {
+                if (ev.type !== 'remove') return { type: 'nothing' };
+                return { type: 'SEND', data: { id: ctx._id } };
+              },
+              { to: 'remove' },
+            ),
+          ],
+        },
+        set: {
           entry,
           invoke: {
-            src: 'remove',
-            ...asyncHandle,
+            src: 'set',
+            onDone: {
+              target: 'success',
+              actions: ['addNeedToFetch'],
+            },
+            onError: [
+              {
+                cond: 'isError_idNotMatch',
+                actions: ['addNeedToFetch', 'assignAsyncError'],
+                target: 'success',
+              },
+              { target: 'error', actions: [] },
+            ],
           },
         },
         retrieve: {
@@ -126,7 +224,7 @@ export default function createModifMachine<T extends Entity>(
           invoke: {
             src: 'fetch',
             ...produce(asyncHandle, draft => {
-              draft.onDone.actions = ['assignPrevious', 'assignCurrent'];
+              draft.onDone.actions = ['assignFetch', 'rinitNeedToFetch'];
               draft.onError = [{ target: 'error', actions: [] }];
             }),
           },
@@ -137,7 +235,7 @@ export default function createModifMachine<T extends Entity>(
           invoke: {
             src: 'refetch',
             ...produce(asyncHandle, draft => {
-              draft.onDone.actions = ['assignPrevious', 'assignCurrent'];
+              draft.onDone.actions = ['assignFetch'];
               draft.onError = [{ target: 'error', actions: [] }];
             }),
           },
@@ -145,7 +243,6 @@ export default function createModifMachine<T extends Entity>(
 
         checking: {
           entry,
-
           always: {},
         },
 
@@ -159,6 +256,13 @@ export default function createModifMachine<T extends Entity>(
 
           on: onEvents,
         },
+        ClientError: {},
+        Information: {},
+        PermissionError: {},
+        Redirect: {},
+        ServerError: {},
+        Success: {},
+        TimeoutError: {},
       },
     },
     {
@@ -171,41 +275,22 @@ export default function createModifMachine<T extends Entity>(
           }
           return false;
         },
+        idNotDefined: ctx => !ctx._id,
+        eventWithoutData: (_, ev: any) => !ev.data,
       },
 
       actions: {
         iterate: assign({ iterator: ctx => ctx.iterator + 1 }),
         assignPrevious: assign({ previous: ctx => ctx.current }),
         assignCurrent: assign({
-          current: (ctx, _event: any) => {
+          current: (_, _event: any) => {
             if (!_event.data) return undefined;
             const data = _event.data;
             if (data instanceof ReturnData) {
-              const _data = data as ReturnData<T, any>;
-              return _data.forEach({
-                client: () => {
-                  throw new Error();
-                },
-                information: () => {
-                  throw new Error();
-                },
-                permission: () => {
-                  throw new Error();
-                },
-                redirect: () => {
-                  throw new Error();
-                },
-                server: () => {
-                  throw new Error();
-                },
-                success: (_, { _id, ...payload }) => {
-                  console.log('payload', '=>', ctx.previous);
-
-                  return payload as DPW<T>;
-                },
-                timeout: () => {
-                  throw new Error();
-                },
+              const _data = data;
+              return _data.maybeMap({
+                success: (_, { _id, ...payload }) => payload as DPW<T>,
+                else: error,
               });
             }
             return undefined;
@@ -215,41 +300,30 @@ export default function createModifMachine<T extends Entity>(
             const data = ev.data;
             if (data instanceof ReturnData) {
               const _data = data as ReturnData<T, any>;
-
-              return _data.forEach({
-                client: () => {
-                  throw new Error();
-                },
-                information: () => {
-                  throw new Error();
-                },
-                permission: () => {
-                  throw new Error();
-                },
-                redirect: () => {
-                  throw new Error();
-                },
-                server: () => {
-                  throw new Error();
-                },
-                success: (_, payload) => {
-                  return payload._id;
-                },
-                timeout: () => {
-                  throw new Error();
-                },
+              return _data.maybeMap({
+                success: (_, payload) => payload._id,
+                else: error,
               });
             }
             return undefined;
           },
         }),
+        assignFetch: _assign((ctx, _event: any) => {
+          if (!_event.data) return ctx;
+          const data = _event.data;
+          if (data instanceof ReturnData) {
+            ctx.previous = ctx.current;
+            const { _id, ...payload } = data.maybeMap({
+              success: (_, data) => data,
+              else: error,
+            });
+            ctx._id = _id;
+            ctx.current = payload;
+          }
+        }),
         // #region NeedToFetch
-        addNeedToFetch: assign({
-          needToFecth: ctx => ctx.needToFecth + 1,
-        }),
-        rinitNeedToFetch: assign({
-          needToFecth: _ => 0,
-        }),
+        addNeedToFetch: _assign(ctx => ctx.needToFecth++),
+        rinitNeedToFetch: _assign(ctx => (ctx.needToFecth = 0)),
         // #endregion
         assignAsyncError: assign({
           error: (_, _event: any) => {
@@ -264,21 +338,19 @@ export default function createModifMachine<T extends Entity>(
         update: assign({
           mutations: (ctx, event) => {
             if (event.type !== 'update') return undefined;
-            if (!ctx.mutations) return undefined;
-            return [...ctx.mutations, event.data];
+            return [...(ctx.mutations ?? []), event.data];
           },
         }),
         delete: assign({
           mutations: (ctx, ev) => {
             if (ev.type !== 'delete') return undefined;
-            if (!ctx.mutations) return undefined;
             const next = {
               _deletedAt: false,
             } as DPW<T>;
-
-            return [...ctx.mutations, next];
+            return [...(ctx.mutations ?? []), next];
           },
         }),
+        rinitMutations: _assign(ctx => (ctx.mutations = [])),
 
         retrieve: assign({
           mutations: (ctx, event) => {
@@ -293,35 +365,10 @@ export default function createModifMachine<T extends Entity>(
       },
 
       services: {
-        save: (ctx, ev) => {
-          if (ev.type !== 'update') {
-            throw new StateError('incorrectState');
-          }
-          if (!ctx._id) throw new StateError('idNotDefined');
-          if (!ctx.mutations) throw new StateError('noMutations');
-          if (!ctx.mutations.length)
-            throw new StateError('emptyMutations');
-          return crud.updateOneById(ctx._id, ev.data);
-        },
-        remove: (ctx, ev) => {
-          if (ev.type !== 'remove') {
-            throw new StateError('incorrectState');
-          }
-          if (!ctx._id) throw new StateError('idNotDefined');
-          return crud.removeOneById('ctx.id');
-        },
-
-        fetch: (_, ev) => {
-          if (ev.type !== 'fetch') throw new StateError('incorrectState');
-          if (!ev.id) throw new StateError('idNotDefined');
-          return crud.readOneById(ev.id);
-        },
-        refetch: (ctx, ev) => {
-          if (ev.type !== 'refetch')
-            throw new StateError('incorrectState');
-          if (!ctx._id) throw new StateError('idNotDefined');
-          return crud.readOneById(ctx._id);
-        },
+        save: createRDMachine(crud.updateOneById),
+        remove: createRDMachine(crud.removeOneById),
+        set: createRDMachine(crud.setOneById),
+        read: createRDMachine(crud.readOneById),
       },
     },
   );

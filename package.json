@@ -40,6 +40,7 @@
     "@types/jest": "^27.0.2",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
+    "@xstate/immer": "^0.2.0",
     "core": "https://github.com/chlbri/core.git#publish",
     "core-data": "https://github.com/chlbri/core-data.git#publish",
     "core-promises": "https://github.com/chlbri/core-promises.git#publish",

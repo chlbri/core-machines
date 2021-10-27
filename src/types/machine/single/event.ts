@@ -1,12 +1,13 @@
-import { DeepPartial } from 'core';
-import { Entity, WithoutId } from 'core-data';
+import { Entity } from 'core-data';
+import { DPW } from '../../_config';
 
 export type SingleEvent<T extends Entity> =
-  | { type: 'update'; data: WithoutId<DeepPartial<T>> }
+  | { type: 'update'; data: DPW<T> }
+  | { type: 'set'; data: DPW<T> }
   | { type: 'delete' }
   | { type: 'remove' }
   | { type: 'retrieve' }
+  | { type: 'SEND' }
   | { type: 'save' }
-  | { type: 'fetch'; id: string }
+  | { type: 'fetch'; _id: string }
   | { type: 'refetch' };
-
