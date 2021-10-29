@@ -1,3 +1,4 @@
+import ReturnData from 'core-promises';
 import dayjs from 'dayjs';
 import produce from 'immer';
 import { mockFn } from 'jest-mock-extended';
@@ -98,6 +99,22 @@ function actionExists(action: string) {
     selector: machine => machine.options.actions,
   });
 }
+
+const readmanyEmpty = mockFn<typeof mockDAO.readMany>().mockResolvedValue(
+  new ReturnData({ status: 200, payload: [] }),
+);
+
+const readmanyData = mockFn<typeof mockDAO.readMany>().mockResolvedValue(
+  new ReturnData({ status: 200, payload: db }),
+);
+
+const countMock = mockFn<typeof mockDAO.count>().mockResolvedValue(
+  new ReturnData({ status: 200, payload: 26 }),
+);
+
+const deleteAndRemoveOneMock = mockFn<
+  typeof mockDAO.deleteOneById
+>().mockResolvedValue(new ReturnData({ status: 200, payload: db[0]._id }));
 
 function guardExists(guard: string) {
   return exists({
@@ -213,8 +230,7 @@ describe('Actions', () => {
     generateAsyncMachineTest({
       machine: createListMachine(
         produce(mockDAO, draft => {
-          draft.readMany =
-            mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+          draft.readMany = readmanyData;
           draft.count = mockFn<typeof mockDAO.count>().mockRejectedValue(
             new Error(),
           );
@@ -229,11 +245,8 @@ describe('Actions', () => {
     generateAsyncMachineTest({
       machine: createListMachine(
         produce(mockDAO, draft => {
-          draft.readMany = mockFn<
-            typeof mockDAO.readMany
-          >().mockResolvedValue([]);
-          draft.count =
-            mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+          draft.readMany = readmanyEmpty;
+          draft.count = countMock;
         }),
         { col: '' },
       ),
@@ -246,16 +259,17 @@ describe('Actions', () => {
 
     describe('It has data', () => {
       const mock = produce(mockDAO, draft => {
-        draft.readMany =
-          mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+        draft.readMany = readmanyData;
 
-        draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+        draft.count = countMock;
       });
       generateAsyncMachineTest({
         machine: createListMachine(mock, { col: '' }),
         events: ['FETCH'],
         values: ['idle', 'fetching', 'success'],
         timeout: 100,
+        invite: 'Data is full',
+
         // subscribers: [
         //   (state) => {
         //     console.log('state.context', '=>', state.context);
@@ -272,9 +286,8 @@ describe('Actions', () => {
   });
   describe('PREVIOUS', () => {
     const mock = produce(mockDAO, draft => {
-      draft.readMany =
-        mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
-      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.readMany = readmanyData;
+      draft.count = countMock;
     });
     generateAsyncMachineTest({
       machine: createListMachine(mock, { col: '' }),
@@ -288,7 +301,7 @@ describe('Actions', () => {
       events: ['FETCH', 'PREVIOUS'],
       values: ['idle', 'fetching', 'success', 'internalError'],
       timeout: 100,
-      initialContext: { current: db },
+      initialContext: { data: db },
 
       invite: "It doesn't have previous page",
     });
@@ -303,9 +316,8 @@ describe('Actions', () => {
   });
   describe('NEXT', () => {
     const mock = produce(mockDAO, draft => {
-      draft.readMany =
-        mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
-      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.readMany = readmanyData;
+      draft.count = countMock;
     });
     generateAsyncMachineTest({
       machine: createListMachine(mock, { col: '' }),
@@ -320,7 +332,7 @@ describe('Actions', () => {
       events: ['FETCH', 'NEXT'],
       values: ['idle', 'fetching', 'success', 'internalError'],
       timeout: 100,
-      initialContext: { current: db },
+      initialContext: { data: db },
 
       invite: "It doesn't have next page",
     });
@@ -333,7 +345,7 @@ describe('Actions', () => {
       values: ['success', 'fetching', 'success'],
       timeout: 100,
       initialState: 'success',
-      initialContext: { canNextFetch: true, current: db },
+      initialContext: { canNextFetch: true, data: db },
       invite: 'It have next page online only',
       // subscribers: [
       //   (state) => {
@@ -360,26 +372,23 @@ describe('Actions', () => {
   describe('DELETE', () => {
     const __db = [...db];
     const errorMock = produce(mockDAO, draft => {
-      draft.readMany =
-        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
-      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.readMany = readmanyData;
+      draft.count = countMock;
     });
     const successMock = produce(mockDAO, draft => {
-      draft.readMany =
-        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
-      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
-      draft.deleteOneById = mockFn<
-        typeof mockDAO.deleteOneById
-      >().mockImplementation(async id => id);
+      draft.readMany = readmanyData;
+      draft.count = countMock;
+      draft.deleteOneById = deleteAndRemoveOneMock;
     });
     const successAndFetchMock = produce(mockDAO, draft => {
-      draft.readMany =
-        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
-      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(
+        new ReturnData({ status: 200, payload: __db }),
+      );
+      draft.count = countMock;
       draft.deleteOneById = mockFn<
         typeof mockDAO.deleteOneById
-      >().mockImplementation(async id => {
-        const index = __db.findIndex(data => data.id === id);
+      >().mockImplementation(async ({ id }) => {
+        const index = __db.findIndex(data => data._id === id);
         __db.length = 0;
         if (index !== -1)
           __db.push(
@@ -387,7 +396,7 @@ describe('Actions', () => {
               (draft[index] as any).deletedAt = new Date();
             }),
           );
-        return id;
+        return new ReturnData({ status: 200, payload: id });
       });
     });
 
@@ -454,12 +463,12 @@ describe('Actions', () => {
       ],
     });
     it('data with the specific `id` shoulds be deleted', () => {
-      const find = __db.find(({ id }) => id === idDelete);
+      const find = __db.find(({ _id }) => _id === idDelete);
       console.log('find', find);
-      if (!find?.deletedAt) {
+      if (!find?._deletedAt) {
         expect(true).toBeFalsy();
       } else {
-        expect(find.deletedAt).toBeBefore(dayjs().toDate());
+        expect(find._deletedAt).toBeBefore(dayjs().toDate());
       }
     });
     // beforeAll(() => {
@@ -475,29 +484,24 @@ describe('Actions', () => {
   describe('REMOVE', () => {
     const __db = [...db];
     const errorMock = produce(mockDAO, draft => {
-      draft.readMany =
-        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
-      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.readMany = readmanyData;
+      draft.count = countMock;
     });
     const successMock = produce(mockDAO, draft => {
-      draft.readMany =
-        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
-      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
-      draft.removeOneById = mockFn<
-        typeof mockDAO.removeOneById
-      >().mockImplementation(async id => id);
+      draft.readMany = readmanyData;
+      draft.count = countMock;
+      draft.removeOneById = deleteAndRemoveOneMock;
     });
 
     const successAndFetchMock = produce(mockDAO, draft => {
-      draft.readMany =
-        mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
-      draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+      draft.readMany = readmanyData;
+      draft.count = countMock;
       draft.removeOneById = mockFn<
         typeof mockDAO.removeOneById
-      >().mockImplementation(async id => {
-        const index = __db.findIndex(data => data.id === id);
+      >().mockImplementation(async ({ id }) => {
+        const index = __db.findIndex(data => data._id === id);
         if (index !== -1) __db.splice(index, 1);
-        return id;
+        return new ReturnData({ status: 200, payload: id });
       });
     });
 
@@ -567,7 +571,7 @@ describe('Actions', () => {
     });
 
     it('data with the specific `id` shoulds be removed', () => {
-      const find = __db.find(({ id }) => id === idRemove);
+      const find = __db.find(({ _id }) => _id === idRemove);
       expect(find).toBeUndefined();
     });
 

@@ -18,7 +18,7 @@ type RDStateKeys = keyof Pick<
   | 'isTimeoutError'
 >;
 
-function guardRD<TC>(func: RDStateKeys) {
+function guardRD<TC>(func: RDStateKeys): (_: TC, ev: any) => boolean {
   const out = (_: TC, ev: any) => {
     const data = ev.data;
     if (data instanceof ReturnData) {
@@ -97,111 +97,133 @@ export function createRDMachine<I extends any, O>(
           },
         },
         ClientError: {
-          entry: sendParent(ctx => {
-            if (!ctx.data) error();
-            return ctx.data.maybeMap({
-              client: (status, message) => ({
-                type: 'SEND',
-                status,
-                message,
-              }),
-              else: error,
-            });
-          }),
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                client: (status, message) => ({
+                  type: 'SEND',
+                  status,
+                  message,
+                }),
+                else: error,
+              });
+            }),
+          ],
           on: {
             SEND: 'Pending',
           },
         },
         Information: {
-          entry: sendParent(ctx => {
-            if (!ctx.data) error();
-            return ctx.data.maybeMap({
-              information: (status, payload, message) => ({
-                type: 'SEND',
-                status,
-                payload,
-                message,
-              }),
-              else: error,
-            });
-          }),
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                information: (status, payload, message) => ({
+                  type: 'SEND',
+                  status,
+                  payload,
+                  message,
+                }),
+                else: error,
+              });
+            }),
+          ],
           on: {
             SEND: 'Pending',
           },
         },
         PermissionError: {
-          entry: sendParent(ctx => {
-            if (!ctx.data) error();
-            return ctx.data.maybeMap({
-              permission: (status, payload, notPermitteds) => ({
-                type: 'SEND',
-                payload,
-                notPermitteds,
-              }),
-              else: error,
-            });
-          }),
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                permission: (status, payload, notPermitteds) => ({
+                  type: 'SEND',
+                  payload,
+                  notPermitteds,
+                }),
+                else: error,
+              });
+            }),
+          ],
           on: {
             SEND: 'Pending',
           },
         },
         Redirect: {
-          entry: sendParent(ctx => {
-            if (!ctx.data) error();
-            return ctx.data.maybeMap({
-              redirect: (status, payload, message) => ({
-                type: 'SEND',
-                status,
-                payload,
-                message,
-              }),
-              else: error,
-            });
-          }),
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                redirect: (status, payload, message) => ({
+                  type: 'SEND',
+                  status,
+                  payload,
+                  message,
+                }),
+                else: error,
+              });
+            }),
+          ],
           on: {
             SEND: 'Pending',
           },
         },
         ServerError: {
-          entry: sendParent(ctx => {
-            if (!ctx.data) error();
-            return ctx.data.maybeMap({
-              server: (status, message) => ({
-                type: 'SEND',
-                status,
-                message,
-              }),
-              else: error,
-            });
-          }),
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                server: (status, message) => ({
+                  type: 'SEND',
+                  status,
+                  message,
+                }),
+                else: error,
+              });
+            }),
+          ],
           on: {
             SEND: 'Pending',
           },
         },
         Success: {
-          entry: sendParent(ctx => {
-            if (!ctx.data) error();
-            return ctx.data.maybeMap({
-              success: (status, payload) => ({
-                type: 'SEND',
-                status,
-                payload,
-              }),
-              else: error,
-            });
-          }),
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                success: (status, payload) => ({
+                  type: 'SEND',
+                  status,
+                  payload,
+                }),
+                else: error,
+              });
+            }),
+          ],
+          
           on: {
             SEND: 'Pending',
           },
         },
         TimeoutError: {
-          entry: sendParent(ctx => {
-            if (!ctx.data) error();
-            return ctx.data.maybeMap({
-              timeout: status => ({ type: 'SEND', status }),
-              else: error,
-            });
-          }),
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                timeout: status => ({ type: 'SEND', status }),
+                else: error,
+              });
+            }),
+          ],
           on: {
             SEND: 'Pending',
           },
