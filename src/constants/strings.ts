@@ -13,7 +13,7 @@ export const INTERNAL_STATE_ERROR_STRINGS = [
   'idNotMatch',
   'noData',
   'noMutations',
-  'emptyMutations'
+  'emptyMutations',
 ] as const;
 
 export const STATE_ERROR_STRINGS = [

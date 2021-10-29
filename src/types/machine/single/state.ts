@@ -21,7 +21,10 @@ export type SingleTypeState<T extends Entity> =
         | 'refetch';
       context: SingleContext<T> & SingleContextPending;
     }
-  | { value: 'success'; context: SingleContext<T> & SingleContextSuccess<T> }
+  | {
+      value: 'success';
+      context: SingleContext<T> & SingleContextSuccess<T>;
+    }
   | {
       value: 'internalError';
       context: SingleContext<T> & SingleInternalError<T>;

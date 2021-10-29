@@ -4,7 +4,8 @@ import {
   STATE_ERROR_STRINGS,
 } from '../constants/strings';
 
-export type AsyncStateErrorString = typeof ASYNC_STATE_ERROR_STRINGS[number];
+export type AsyncStateErrorString =
+  typeof ASYNC_STATE_ERROR_STRINGS[number];
 
 export type InternalStateErrorString =
   typeof INTERNAL_STATE_ERROR_STRINGS[number];

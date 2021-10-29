@@ -59,7 +59,7 @@ const manyData = [
 // };
 
 type Selector<TC, TE extends EventObject, TT extends Typestate<TC>> = (
-  machine: StateMachine<TC, any, TE, TT>
+  machine: StateMachine<TC, any, TE, TT>,
 ) => any;
 
 type ExistProps<TC, TE extends EventObject, TT extends Typestate<TC>> = {
@@ -86,7 +86,7 @@ function stateExists(state: StateValue) {
     identity: 'State',
     machine,
     value: state,
-    selector: (machine) => machine.states,
+    selector: machine => machine.states,
   });
 }
 
@@ -95,7 +95,7 @@ function actionExists(action: string) {
     identity: 'Action',
     machine,
     value: action,
-    selector: (machine) => machine.options.actions,
+    selector: machine => machine.options.actions,
   });
 }
 
@@ -104,7 +104,7 @@ function guardExists(guard: string) {
     identity: 'Guerd',
     machine,
     value: guard,
-    selector: (machine) => machine.options.guards,
+    selector: machine => machine.options.guards,
   });
 }
 
@@ -113,7 +113,7 @@ function serviceExists(service: string) {
     identity: 'Service',
     machine,
     value: service,
-    selector: (machine) => machine.options.services,
+    selector: machine => machine.options.services,
   });
 }
 
@@ -198,12 +198,12 @@ describe('Actions', () => {
   describe('FETCH', () => {
     generateAsyncMachineTest({
       machine: createListMachine(
-        produce(mockDAO, (draft) => {
-          draft.readMany = mockFn<typeof mockDAO.readMany>().mockRejectedValue(
-            new Error()
-          );
+        produce(mockDAO, draft => {
+          draft.readMany = mockFn<
+            typeof mockDAO.readMany
+          >().mockRejectedValue(new Error());
         }),
-        { col: '' }
+        { col: '' },
       ),
       events: ['FETCH'],
       values: ['idle', 'fetching', 'error'],
@@ -212,14 +212,14 @@ describe('Actions', () => {
     });
     generateAsyncMachineTest({
       machine: createListMachine(
-        produce(mockDAO, (draft) => {
+        produce(mockDAO, draft => {
           draft.readMany =
             mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
           draft.count = mockFn<typeof mockDAO.count>().mockRejectedValue(
-            new Error()
+            new Error(),
           );
         }),
-        { col: '' }
+        { col: '' },
       ),
       events: ['FETCH'],
       values: ['idle', 'fetching', 'error'],
@@ -228,13 +228,14 @@ describe('Actions', () => {
     });
     generateAsyncMachineTest({
       machine: createListMachine(
-        produce(mockDAO, (draft) => {
-          draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(
-            []
-          );
-          draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
+        produce(mockDAO, draft => {
+          draft.readMany = mockFn<
+            typeof mockDAO.readMany
+          >().mockResolvedValue([]);
+          draft.count =
+            mockFn<typeof mockDAO.count>().mockResolvedValue(26);
         }),
-        { col: '' }
+        { col: '' },
       ),
       events: ['FETCH'],
       values: ['idle', 'fetching', 'internalError'],
@@ -244,7 +245,7 @@ describe('Actions', () => {
     });
 
     describe('It has data', () => {
-      const mock = produce(mockDAO, (draft) => {
+      const mock = produce(mockDAO, draft => {
         draft.readMany =
           mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
 
@@ -270,8 +271,9 @@ describe('Actions', () => {
     });
   });
   describe('PREVIOUS', () => {
-    const mock = produce(mockDAO, (draft) => {
-      draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+    const mock = produce(mockDAO, draft => {
+      draft.readMany =
+        mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
       draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
     });
     generateAsyncMachineTest({
@@ -300,8 +302,9 @@ describe('Actions', () => {
     });
   });
   describe('NEXT', () => {
-    const mock = produce(mockDAO, (draft) => {
-      draft.readMany = mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
+    const mock = produce(mockDAO, draft => {
+      draft.readMany =
+        mockFn<typeof mockDAO.readMany>().mockResolvedValue(db);
       draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
     });
     generateAsyncMachineTest({
@@ -356,33 +359,33 @@ describe('Actions', () => {
 
   describe('DELETE', () => {
     const __db = [...db];
-    const errorMock = produce(mockDAO, (draft) => {
+    const errorMock = produce(mockDAO, draft => {
       draft.readMany =
         mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
       draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
     });
-    const successMock = produce(mockDAO, (draft) => {
+    const successMock = produce(mockDAO, draft => {
       draft.readMany =
         mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
       draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
       draft.deleteOneById = mockFn<
         typeof mockDAO.deleteOneById
-      >().mockImplementation(async (id) => id);
+      >().mockImplementation(async id => id);
     });
-    const successAndFetchMock = produce(mockDAO, (draft) => {
+    const successAndFetchMock = produce(mockDAO, draft => {
       draft.readMany =
         mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
       draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
       draft.deleteOneById = mockFn<
         typeof mockDAO.deleteOneById
-      >().mockImplementation(async (id) => {
-        const index = __db.findIndex((data) => data.id === id);
+      >().mockImplementation(async id => {
+        const index = __db.findIndex(data => data.id === id);
         __db.length = 0;
         if (index !== -1)
           __db.push(
-            ...produce(db, (draft) => {
+            ...produce(db, draft => {
               (draft[index] as any).deletedAt = new Date();
-            })
+            }),
           );
         return id;
       });
@@ -445,7 +448,7 @@ describe('Actions', () => {
         { iterator: 6 },
       ],
       subscribers: [
-        (state) => {
+        state => {
           console.log('state', '=>', state.value);
         },
       ],
@@ -471,28 +474,28 @@ describe('Actions', () => {
 
   describe('REMOVE', () => {
     const __db = [...db];
-    const errorMock = produce(mockDAO, (draft) => {
+    const errorMock = produce(mockDAO, draft => {
       draft.readMany =
         mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
       draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
     });
-    const successMock = produce(mockDAO, (draft) => {
+    const successMock = produce(mockDAO, draft => {
       draft.readMany =
         mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
       draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
       draft.removeOneById = mockFn<
         typeof mockDAO.removeOneById
-      >().mockImplementation(async (id) => id);
+      >().mockImplementation(async id => id);
     });
 
-    const successAndFetchMock = produce(mockDAO, (draft) => {
+    const successAndFetchMock = produce(mockDAO, draft => {
       draft.readMany =
         mockFn<typeof mockDAO.readMany>().mockResolvedValue(__db);
       draft.count = mockFn<typeof mockDAO.count>().mockResolvedValue(26);
       draft.removeOneById = mockFn<
         typeof mockDAO.removeOneById
-      >().mockImplementation(async (id) => {
-        const index = __db.findIndex((data) => data.id === id);
+      >().mockImplementation(async id => {
+        const index = __db.findIndex(data => data.id === id);
         if (index !== -1) __db.splice(index, 1);
         return id;
       });
@@ -557,7 +560,7 @@ describe('Actions', () => {
         { iterator: 6 },
       ],
       subscribers: [
-        (state) => {
+        state => {
           console.log('state', '=>', state.value);
         },
       ],

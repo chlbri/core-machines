@@ -1,5 +1,5 @@
 import { NFunction } from 'core';
-import ReturnData, { error, isTimeout } from 'core-promises';
+import ReturnData, { error } from 'core-promises';
 import { assign, createMachine, sendParent, StateMachine } from 'xstate';
 import { RDContext } from './context';
 import { RDEvent } from './event';
@@ -17,8 +17,6 @@ type RDStateKeys = keyof Pick<
   | 'isSuccess'
   | 'isTimeoutError'
 >;
-
-type StateType = 'atomic' | 'compound' | 'parallel' | 'final' | 'history';
 
 function guardRD<TC>(func: RDStateKeys) {
   const out = (_: TC, ev: any) => {

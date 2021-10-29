@@ -13,7 +13,7 @@ export type SingleContext<T extends Entity> = {
   payload?: DPW<T>;
   _mutations: DPW<T>[];
   errors: ErrorStateString[];
-  notPermitteds:StringKeys<T>[];
+  notPermitteds: StringKeys<T>[];
   message?: string;
   needToFecth: number;
 };

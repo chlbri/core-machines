@@ -1,4 +1,4 @@
-import ReturnData, { _ReturnData } from 'core-promises';
+import ReturnData from 'core-promises';
 
 export type RDContext<T> = {
   // isClientError?: true;
