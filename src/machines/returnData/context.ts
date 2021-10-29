@@ -1,4 +1,4 @@
-import { _ReturnData } from 'core-promises';
+import ReturnData, { _ReturnData } from 'core-promises';
 
 export type RDContext<T> = {
   // isClientError?: true;
@@ -8,6 +8,6 @@ export type RDContext<T> = {
   // isServerError?: true;
   // isSuccess?: true;
   // isTimeoutError?: true;
-  data?: _ReturnData<T, any>;
+  data?: ReturnData<T, any>;
   iterator: number;
 };
