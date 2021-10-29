@@ -208,7 +208,7 @@ export function createRDMachine<I extends any, O>(
               });
             }),
           ],
-          
+
           on: {
             SEND: 'Pending',
           },
