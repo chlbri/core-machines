@@ -1,3 +1,4 @@
+import { StringKeys } from 'core';
 import { Entity } from 'core-data';
 import {
   AsyncStateErrorString,
@@ -9,10 +10,11 @@ import { DPW } from '../../_config';
 export type SingleContext<T extends Entity> = {
   iterator: number;
   _id?: string;
-  current?: DPW<T>;
-  previous?: DPW<T>;
-  mutations?: DPW<T>[];
-  error?: ErrorStateString;
+  payload?: DPW<T>;
+  _mutations: DPW<T>[];
+  errors: ErrorStateString[];
+  notPermitteds: StringKeys<T>[];
+  message?: string;
   needToFecth: number;
 };
 

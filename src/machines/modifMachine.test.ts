@@ -9,7 +9,6 @@ import { SingleContext, SingleEvent } from '../types';
 import createModifMachine from './modifMachine';
 import ReturnData from 'core-promises';
 
-
 const eventUpdate: Event<SingleEvent<DataMock>> = {
   type: 'update',
   data: {
@@ -37,6 +36,9 @@ const eventFetchSingle: Event<SingleEvent<DataMock>> = {
 const initialContext: SingleContext<DataMock> = {
   iterator: 0,
   needToFecth: 0,
+  _mutations: [],
+  errors: [],
+  notPermitteds: [],
 };
 
 describe('Update', () => {
@@ -67,40 +69,40 @@ describe('Update', () => {
       'idle',
       'pending',
       'save',
-      'error',
+      'data',
       'fetch',
-      'success',
+      'data',
       'pending',
       'save',
-      'success',
+      'data',
       'fetch',
-      'success',
+      'data',
     ],
     contexts: [
       initialContext,
-      { iterator: 1, mutations: [eventUpdate.data] },
+      { iterator: 1, _mutations: [eventUpdate.data] },
       undefined,
-      { iterator: 3, mutations: [] },
+      { iterator: 3, _mutations: [] },
       undefined,
-      { iterator: 5, needToFecth: 0, current: payload, _id },
+      { iterator: 5, needToFecth: 0, payload: payload, _id },
       {
         iterator: 6,
-        current: payload,
+        payload: payload,
         _id,
-        mutations: [eventUpdate.data],
+        _mutations: [eventUpdate.data],
       },
       undefined,
       {
         iterator: 8,
         needToFecth: 1,
-        mutations: [],
+        _mutations: [],
       },
       undefined,
       {
         iterator: 10,
-        current: payload,
+        payload: payload,
         _id,
-        mutations: [],
+        _mutations: [],
         needToFecth: 0,
       },
     ],
@@ -134,14 +136,14 @@ describe('Delete', () => {
       'idle',
       'pending',
       'save',
-      'error',
+      'data',
       'fetch',
-      'success',
+      'data',
       'pending',
       'save',
-      'success',
+      'data',
       'fetch',
-      'success',
+      'data',
     ],
     contexts: [initialContext, { iterator: 1, needToFecth: 0 }],
     timeout: 100,
@@ -152,23 +154,23 @@ describe('Remove', () => {
   const crud = produce(mockDAO, draft => {
     draft.removeOneById = mockFn<
       typeof mockDAO.removeOneById
-    >().mockResolvedValue(
-      new ReturnData({ status: 900}),
-    );
+    >().mockResolvedValue(new ReturnData({ status: 900 }));
     draft.readOneById = mockFn<
       typeof mockDAO.readOneById
     >().mockResolvedValue(new ReturnData({ status: 200, payload: db[0] }));
   });
 
+  const { _id, ...payload } = db[0];
+
   generateAsyncMachineTest({
     machine: createModifMachine({ crud }),
     events: [eventFetchSingle, eventRemove],
-    values: ['idle', 'fetch', 'success', 'remove', 'success'],
+    values: ['idle', 'fetch', 'data', 'remove', 'data'],
     contexts: [
       initialContext,
       { iterator: 1 },
-      { iterator: 2 },
-      { iterator: 3 },
+      { iterator: 2, needToFecth: 0 },
+      { iterator: 3, payload, _id },
       { iterator: 4, needToFecth: 1 },
     ],
     timeout: 1000,
@@ -191,7 +193,7 @@ describe('Set', () => {
   generateAsyncMachineTest({
     machine: createModifMachine({ crud }),
     events: [eventFetchSingle, eventSet],
-    values: ['idle', 'fetch', 'success', 'set', 'success'],
+    values: ['idle', 'fetch', 'data', 'set', 'data'],
     contexts: [
       initialContext,
       { iterator: 1 },
@@ -234,40 +236,40 @@ describe('Retrieve', () => {
       'idle',
       'pending',
       'save',
-      'error',
+      'data',
       'fetch',
-      'success',
+      'data',
       'pending',
       'save',
-      'success',
+      'data',
       'fetch',
-      'success',
+      'data',
     ],
     contexts: [
       initialContext,
-      { iterator: 1, mutations: [{ _deletedAt: false }] },
+      { iterator: 1, _mutations: [{ _deletedAt: false }] },
       undefined,
-      { iterator: 3, mutations: [] },
+      { iterator: 3, _mutations: [] },
       undefined,
-      { iterator: 5, needToFecth: 0, current: payload, _id },
+      { iterator: 5, needToFecth: 0, payload: payload, _id },
       {
         iterator: 6,
-        current: payload,
+        payload: payload,
         _id,
-        mutations: [{ _deletedAt: false }],
+        _mutations: [{ _deletedAt: false }],
       },
       undefined,
       {
         iterator: 8,
         needToFecth: 1,
-        mutations: [],
+        _mutations: [],
       },
       undefined,
       {
         iterator: 10,
-        current: payload,
+        payload: payload,
         _id,
-        mutations: [],
+        _mutations: [],
         needToFecth: 0,
       },
     ],
@@ -285,30 +287,27 @@ describe('Refetch', () => {
   generateAsyncMachineTest({
     machine: createModifMachine({ crud }),
     events: [eventFetchSingle, eventRefetch],
-    values: ['idle', 'fetch', 'success', 'refetch', 'success'],
+    values: ['idle', 'fetch', 'data', 'refetch', 'data'],
     contexts: [
       initialContext,
       { iterator: 1 },
       produce(initialContext, draft => {
         draft.iterator += 2;
-        draft.previous = draft.current;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _id, ...payload } = db[0];
-        draft.current = payload;
+        draft.payload = payload;
       }),
       produce(initialContext, draft => {
         draft.iterator += 3;
-        draft.previous = draft.current;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _id, ...payload } = db[0];
-        draft.current = payload;
+        draft.payload = payload;
       }),
       produce(initialContext, draft => {
         draft.iterator += 4;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _id, ...payload } = db[0];
-        draft.previous = payload;
-        draft.current = payload;
+        draft.payload = payload;
       }),
     ],
     timeout: 100,
@@ -325,7 +324,7 @@ describe('Fetch', () => {
   generateAsyncMachineTest({
     machine: createModifMachine({ crud }),
     events: [eventFetchSingle],
-    values: ['idle', 'fetch', 'success'],
+    values: ['idle', 'fetch', 'data'],
     contexts: [
       initialContext,
       produce(initialContext, draft => {
@@ -333,10 +332,9 @@ describe('Fetch', () => {
       }),
       produce(initialContext, draft => {
         draft.iterator += 2;
-        draft.previous = draft.current;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _id, ...payload } = db[0];
-        draft.current = payload;
+        draft.payload = payload;
       }),
     ],
     timeout: 100,

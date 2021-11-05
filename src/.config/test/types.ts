@@ -6,12 +6,11 @@ export type DataMock = Entity & {
   lastName?: string;
 };
 
-
 type Exo = {
-  idTranscation:string;
-  idUser:string;
-  FirstNames:string;
-  LastName:string;
-  amount:string;
-  date:Date;
-}
+  idTranscation: string;
+  idUser: string;
+  FirstNames: string;
+  LastName: string;
+  amount: string;
+  date: Date;
+};

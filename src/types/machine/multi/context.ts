@@ -1,3 +1,4 @@
+import { Entity } from 'core-data';
 import { DataConverter, DocumentData } from '../../data';
 import {
   AsyncStateErrorString,
@@ -5,11 +6,10 @@ import {
   InternalStateErrorString,
 } from '../../error';
 
-export type MultiContext<T extends DocumentData> = {
+export type MultiContext<T extends Entity> = {
   iterator: number;
   lastId?: string;
-  previous?: T[];
-  current?: T[];
+  data?: T[];
   selectedValues?: T[];
   currentPage: number;
   col: string;
@@ -18,7 +18,7 @@ export type MultiContext<T extends DocumentData> = {
   canGoToNextPage?: true;
   totalFromDatabase?: number;
   totalPages?: number;
-  total?: number;
+  totalData?: number;
   totalExceedTotalFromDatabase?: true;
   canNextFetch?: true;
   maxFromDatabase: number;
@@ -34,7 +34,7 @@ export type MultiContextPending = {
   error: undefined;
   totalFromDataBase: number;
   totalPages: number;
-  total: number;
+  totalData: number;
   totalExceedTotalFromDatabase: true;
 };
 

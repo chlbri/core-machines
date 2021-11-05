@@ -1,13 +1,13 @@
+import { Entity } from 'core-data';
 import {
   MultiContext,
-  MultiContextSuccess,
-  MultiContextInternalError,
   MultiContextAsyncError,
+  MultiContextInternalError,
   MultiContextPending,
+  MultiContextSuccess,
 } from './context';
-import { DocumentData } from '../../data';
 
-export type MultiTypeState<T extends DocumentData> =
+export type MultiTypeState<T extends Entity> =
   | {
       value: 'idle';
       context: MultiContext<T> & { iterator: 0; lastId: undefined };

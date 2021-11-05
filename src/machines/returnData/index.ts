@@ -1,9 +1,11 @@
 import { NFunction } from 'core';
-import ReturnData, { isTimeout, _ReturnData } from 'core-promises';
+import ReturnData, { error } from 'core-promises';
 import { assign, createMachine, sendParent, StateMachine } from 'xstate';
 import { RDContext } from './context';
 import { RDEvent } from './event';
 import { RDState } from './state';
+
+// #region Configuration
 
 type RDStateKeys = keyof Pick<
   ReturnData<any, any>,
@@ -16,9 +18,7 @@ type RDStateKeys = keyof Pick<
   | 'isTimeoutError'
 >;
 
-type StateType = 'atomic' | 'compound' | 'parallel' | 'final' | 'history';
-
-function guardRD<TC>(func: RDStateKeys) {
+function guardRD<TC>(func: RDStateKeys): (_: TC, ev: any) => boolean {
   const out = (_: TC, ev: any) => {
     const data = ev.data;
     if (data instanceof ReturnData) {
@@ -67,6 +67,8 @@ export const guardedTransitions = [
   },
 ];
 
+// #endregion
+
 export function createRDMachine<I extends any, O>(
   func: NFunction<[I], Promise<ReturnData<O, any>>>,
 ): StateMachine<RDContext<O>, any, RDEvent<I>, RDState<O>> {
@@ -78,7 +80,6 @@ export function createRDMachine<I extends any, O>(
     },
   };
 
-  const final = { ...state, type: 'final' as StateType };
   return createMachine<RDContext<O>, RDEvent<I>, RDState<O>>(
     {
       context: {
@@ -95,26 +96,137 @@ export function createRDMachine<I extends any, O>(
             onError: guardedTransitions,
           },
         },
-        ClientError: final,
-        Information: final,
-        PermissionError: final,
-        Redirect: final,
-        ServerError: final,
-        Success: final,
+        ClientError: {
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                client: (status, message) => ({
+                  type: 'SEND',
+                  status,
+                  message,
+                }),
+                else: error,
+              });
+            }),
+          ],
+          on: {
+            SEND: 'Pending',
+          },
+        },
+        Information: {
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                information: (status, payload, message) => ({
+                  type: 'SEND',
+                  status,
+                  payload,
+                  message,
+                }),
+                else: error,
+              });
+            }),
+          ],
+          on: {
+            SEND: 'Pending',
+          },
+        },
+        PermissionError: {
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                permission: (status, payload, notPermitteds) => ({
+                  type: 'SEND',
+                  payload,
+                  notPermitteds,
+                }),
+                else: error,
+              });
+            }),
+          ],
+          on: {
+            SEND: 'Pending',
+          },
+        },
+        Redirect: {
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                redirect: (status, payload, message) => ({
+                  type: 'SEND',
+                  status,
+                  payload,
+                  message,
+                }),
+                else: error,
+              });
+            }),
+          ],
+          on: {
+            SEND: 'Pending',
+          },
+        },
+        ServerError: {
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                server: (status, message) => ({
+                  type: 'SEND',
+                  status,
+                  message,
+                }),
+                else: error,
+              });
+            }),
+          ],
+          on: {
+            SEND: 'Pending',
+          },
+        },
+        Success: {
+          entry: [
+            'iterate',
+            sendParent(ctx => {
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                success: (status, payload) => ({
+                  type: 'SEND',
+                  status,
+                  payload,
+                }),
+                else: error,
+              });
+            }),
+          ],
+
+          on: {
+            SEND: 'Pending',
+          },
+        },
         TimeoutError: {
           entry: [
+            'iterate',
             sendParent(ctx => {
-              if (!ctx.data) return { type: '' };
-              const data = ctx.data;
-              if (!isTimeout(data)) {
-                return { type: '' };
-              }
-              return { type: 'SEND', data: { status: data.status } };
+              if (!ctx.data) error();
+              return ctx.data.maybeMap({
+                timeout: status => ({ type: 'SEND', status }),
+                else: error,
+              });
             }),
-            () => {
-              console.log('respond to');
-            },
           ],
+          on: {
+            SEND: 'Pending',
+          },
         },
       },
     },
@@ -122,44 +234,7 @@ export function createRDMachine<I extends any, O>(
       actions: {
         iterate: assign({ iterator: ctx => ctx.iterator + 1 }),
         assignData: assign({
-          data: (_, ev: any) => {
-            const data = ev.data;
-            if (data instanceof ReturnData) {
-              return data.map<_ReturnData<O, any>>({
-                client: (status, message) => ({
-                  status,
-                  message,
-                }),
-                information: (status, payload, message) => ({
-                  status,
-                  payload,
-                  message,
-                }),
-                permission: (status, payload, notPermitteds) => ({
-                  status,
-                  payload,
-                  notPermitteds,
-                }),
-                redirect: (status, payload, message) => ({
-                  status,
-                  payload,
-                  message,
-                }),
-                server: (status, message) => ({
-                  status,
-                  message,
-                }),
-                success: (status, payload) => ({
-                  status,
-                  payload,
-                }),
-                timeout: status => ({
-                  status,
-                }),
-              });
-            }
-            return undefined;
-          },
+          data: (_, ev: any) => ev.data,
         }),
       },
       guards: {

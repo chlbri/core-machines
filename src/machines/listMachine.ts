@@ -195,24 +195,21 @@ export default function createListMachine<T extends Entity>(
         goToPrevPage: assign({ currentPage: ctx => ctx.currentPage - 1 }),
         assign_selectedValues: assign({
           selectedValues: ctx => {
-            if (!ctx.current) throw new Error();
+            if (!ctx.data) throw new Error();
 
             const first = ctx.pageSize * ctx.currentPage;
             const last = first + ctx.pageSize;
-            return ctx.current.slice(first, last);
+            return ctx.data.slice(first, last);
           },
         }),
-        assign_previous: assign({
-          previous: ctx => ctx.current,
-        }),
         assign_current: assign({
-          current: (ctx, event: any) => {
+          data: (ctx, event: any) => {
             if (!event?.data?.data) throw new Error();
             const datas = event.data.data;
             if (!Array.isArray(datas)) throw new Error();
             const isArrayOfT = datas.map(data => !!data.id);
             if (!isArrayOfT) throw new Error();
-            return produce(ctx.current ?? [], draft => {
+            return produce(ctx.data ?? [], draft => {
               draft.push(...datas);
             });
           },
@@ -220,18 +217,18 @@ export default function createListMachine<T extends Entity>(
 
         assign_totalPages: assign({
           totalPages: ctx => {
-            if (!ctx.total) throw new Error();
+            if (!ctx.totalData) throw new Error();
             if (ctx.pageSize === 0) throw new Error();
-            const division = Math.ceil(ctx.total / ctx.pageSize);
+            const division = Math.ceil(ctx.totalData / ctx.pageSize);
             const isZero = division === 0;
             return isZero ? 1 : division;
           },
         }),
         assign_total: assign({
-          total: ctx => {
-            if (!ctx.current) throw new Error();
+          totalData: ctx => {
+            if (!ctx.data) throw new Error();
 
-            return ctx.current.length;
+            return ctx.data.length;
           },
         }),
         assign_pageSize: assign({
@@ -246,21 +243,23 @@ export default function createListMachine<T extends Entity>(
         }),
         assign_totalExceedDataBaseTotalError: assign({
           totalExceedTotalFromDatabase: ctx => {
-            if (!ctx.total) throw new Error();
+            if (!ctx.totalData) throw new Error();
             if (!ctx.totalFromDatabase) throw new Error();
 
-            return ctx.total > ctx.totalFromDatabase ? true : undefined;
+            return ctx.totalData > ctx.totalFromDatabase
+              ? true
+              : undefined;
           },
         }),
         assign_canNextFetch: assign({
           canNextFetch: ctx => {
-            if (!ctx.total) throw new Error();
+            if (!ctx.totalData) throw new Error();
             if (!ctx.totalFromDatabase) throw new Error();
             if (!ctx.totalPages) throw new Error();
             if (!ctx.maxFromDatabase) throw new Error();
             return ctx.currentPage === ctx.totalPages - 1 &&
-              ctx.total < ctx.totalFromDatabase &&
-              ctx.total < ctx.maxFromDatabase
+              ctx.totalData < ctx.totalFromDatabase &&
+              ctx.totalData < ctx.maxFromDatabase
               ? true
               : undefined;
           },
@@ -269,7 +268,10 @@ export default function createListMachine<T extends Entity>(
           nextFetching: _ => true,
         }),
         assign_lastId: assign({
-          lastId: ctx => ctx.current?.[0]?._id,
+          lastId: ctx => {
+            const reverse = ctx.data?.reverse();
+            return reverse?.[0]._id;
+          },
         }),
         fetchNextEnd: assign({
           nextFetching: _ => undefined,
