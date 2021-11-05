@@ -218,6 +218,8 @@ describe('Retrieve', () => {
 
   const { _id, ...payload } = db[0];
 
+  //id and login
+
   generateAsyncMachineTest({
     machine: createModifMachine({ crud }),
     events: [
